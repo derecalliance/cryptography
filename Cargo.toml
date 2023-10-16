@@ -1,0 +1,37 @@
+[package]
+name = "derec-crypto"
+version = "0.1.0"
+authors = [ "derec contributors" ]
+description = "Cryptography primitives useful for implementing the Decentralized Recovery protocol"
+homepage = "https://derecalliance.org/"
+repository = "https://github.com/rsinha/derec_crypto"
+documentation = "https://docs.rs/derec-crypto/"
+keywords = ["cryptography", "secret-sharing", "encryption", "signing" ]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+sha2 = "*"
+rsa = "*"
+aes = "*"
+aes-gcm = "*"
+anyhow = "*"
+rand = "*"
+rand_chacha = "*"
+ark-std = "*"
+ark-ec = "*"
+ark-ff = "*"
+ark-poly = "*"
+ark-serialize = { version = "*", default-features = true }
+ark-bls12-381 = "*"
+pgp = "0.9.0"
+smallvec = "1.10.0"
+base64 = "*"
+hex = "*"
+bs58 = "*"
+thiserror = "*"
