@@ -1,21 +1,9 @@
 //! Implements functions for (authenticated) secret sharing.
 
 use anyhow::{Context, Result};
-use aes::{Aes128, Block};
-use aes::cipher::{
-    typenum::*,
-    KeyInit, 
-    BlockEncryptMut,
-    generic_array::GenericArray
-};
-use sha2::{Sha256, Digest};
+
 use rand_chacha::rand_core::SeedableRng;
 use serde::{Deserialize,Serialize};
-
-use aes_gcm::{
-    aead::Aead,
-    Aes128Gcm, Nonce, Key
-};
 
 use crate::secret_sharing::*;
 
@@ -49,7 +37,8 @@ impl ADSSShare {
     }
 }
 
-pub fn recover(shares: Vec<ADSSShare>) -> Vec<u8> {
+/// the implementation below follows Fig 8 in https://eprint.iacr.org/2020/800.pdf
+pub fn recover(shares: &Vec<ADSSShare>) -> Vec<u8> {
     assert!(shares.len() > 0);
     let access = shares[0].threshold_access_structure.clone();
     let j = shares[0].pub_j.clone();
@@ -64,11 +53,11 @@ pub fn recover(shares: Vec<ADSSShare>) -> Vec<u8> {
 
     let k = shamir::recover(access, shamir_shares);
     
-    let rand = one_time_pad_rand(&d, &k);
-    let msg = decrypt_message(&c, &k);
+    let rand = utils::one_time_pad_rand(&d, &k);
+    let msg = utils::decrypt_message(&c, &k);
 
     //let's perform some checks
-    let hash = random_oracle(&msg, &rand, &tag);
+    let hash = utils::random_oracle(&msg, &rand, &tag);
     assert_eq!(j, hash[0..2 * λ]);
     assert_eq!(k, hash[2 * λ..3 * λ]);
 
@@ -82,16 +71,16 @@ pub fn share(
     rand: &[u8; λ], 
     tag: &[u8]
 ) -> Vec<ADSSShare> {
-    let hash = random_oracle(msg, rand, tag);
+    let hash = utils::random_oracle(msg, rand, tag);
 
     let j: [u8; 2*λ] = hash[0..2 * λ].try_into().unwrap();
     let k: [u8; λ] = hash[2 * λ..3 * λ].try_into().unwrap();
     let l: [u8; λ] = hash[3 * λ..4 * λ].try_into().unwrap();
 
-    let d = one_time_pad_rand(rand, &k);
-    let c = encrypt_message(msg, &k); 
+    let d = utils::one_time_pad_rand(rand, &k);
+    let c = utils::encrypt_message(msg, &k); 
 
-    let seed = prg_seed_expansion(&l).unwrap();
+    let seed = utils::prg_seed_expansion(&l).unwrap();
     let mut rng = rand_chacha::ChaCha8Rng::from_seed(seed);
 
     let shamir_shares = shamir::share(
@@ -115,76 +104,6 @@ pub fn share(
     output
 }
 
-//produces 4λ bits, where λ = 128
-fn random_oracle(msg: &[u8], rand: &[u8], tag: &[u8]) -> Vec<u8> {
-    let mut output : Vec<u8> = Vec::new();
-
-    for i in 0..2 {
-        // create a Sha256 object
-        let mut hasher = Sha256::new();
-        // H(msg || rand || tag)
-        hasher.update(msg);
-        hasher.update(rand);
-        hasher.update(tag);
-        hasher.update([i as u8; 1]); //counter as hash input
-
-        // read hash digest and consume hasher
-        let hash = hasher.finalize();
-        for &b in hash.as_slice() {
-            output.push(b);
-        }
-    }
-
-    output
-}
-
-fn prg_seed_expansion(rand: &[u8]) -> Option<[u8; 32]> {
-    if rand.len() != 16 { //expecting only 128 bit keys
-        return None;
-    }
-
-    let mut seed : [u8; 32] = [0u8; 32];
-    for i in 0..16 {
-        seed[2*i] = rand[i];
-        seed[2*i + 1] = rand[i];
-    }
-    Some(seed)
-}
-
-fn one_time_pad_rand(
-    rand: &[u8; λ], 
-    key: &[u8; λ]
-) -> Vec<u8> {
-    let mut cipher = Aes128::new(&GenericArray::from_slice(key));
-
-    let mut block = Block::default();
-    cipher.encrypt_block_mut(&mut block);
-
-    let ciphertext_block : Vec<u8> = rand
-            .iter()
-            .zip(block.iter())
-            .map(|(x1, x2)| x1 ^ x2)
-            .collect();
-
-    ciphertext_block
-}
-
-fn encrypt_message(msg: &[u8], key: &[u8; λ]) -> Vec<u8> {
-    let key: &Key<Aes128Gcm> = key.into();
-    let cipher = Aes128Gcm::new(&key);
-    let nonce = Nonce::<U12>::default();
-
-    cipher.encrypt(&nonce, msg).unwrap()
-}
-
-fn decrypt_message(ctxt: &[u8], key: &[u8; λ]) -> Vec<u8> {
-    let key: &Key<Aes128Gcm> = key.into();
-    let cipher = Aes128Gcm::new(&key);
-    let nonce = Nonce::<U12>::default();
-
-    cipher.decrypt(&nonce, ctxt).unwrap()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,7 +123,7 @@ mod tests {
         rng.fill(&mut msg);
 
         let shares = share((3,5), &msg, &rand, &msg);
-        let recovered = recover(shares);
+        let recovered = recover(&shares);
 
         assert_eq!(msg, recovered[..]);
     }
