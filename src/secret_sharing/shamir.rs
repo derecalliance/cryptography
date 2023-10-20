@@ -12,84 +12,124 @@ use crate::secret_sharing::*;
 // for now we'll use the prime field underlying the BLS12-381 G1 curve.
 use ark_bls12_381::Fr as F;
 
+/*
+ * share takes as input a secret of length λ bytes and access structure (t,n), 
+ * and produces n Shamir shares with a reconstruction threshold of t (where t < n).
+ * This method samples a random polynomial f s.t. f(0) evaluates to the secret.
+ * Each share is an encoding (x, y) where x is a random element in the field
+ * and y is the evaluation of the aforementioned polynomial f at x.
+ */
 pub fn share<R: Rng>(
     secret: &[u8; λ], 
     access: (u64, u64),
     rng: &mut R
-) -> Vec<(u64, Vec<u8>)> {
-    //convert byte array to bit array for BigInt conversion
-    let secret_bits = bytes_to_bits_be(secret);
-    let secret_bigint = BigInteger::from_bits_be(&secret_bits);
+) -> Vec<(Vec<u8>, Vec<u8>)> {
 
+    // parse the desired access structure.
+    // n is the number of shares, while
+    // t <= n is the reconstruction threshold.
     let (t, n) = access;
-    // degree t - 1 polynomial has t coefficients
+
+    // let us sample a random degree t-1 polynomial.
+    // A degree t - 1 polynomial has t coefficients,
+    // which we sample at random
     let mut coeffs: Vec<F> = (0..t)
         .map(|_| F::rand(rng))
         .collect();
 
-    // f(0) must be the secret
-    let secret_f = F::from_bigint(secret_bigint).unwrap();
-    coeffs[0] = F::from_bigint(secret_bigint).unwrap(); //F::from_be_bytes_mod_order(secret);
+    // But we don't want a completely random polynomial, 
+    // but rather one whose evaluation at x=0 is the secret.
+    // So, let us replace zero-th coefficient with our secret.
+    let secret_bigint = BigInteger::from_bits_be(
+        &bytes_to_bits_be(secret));
+    coeffs[0] = F::from_bigint(secret_bigint).unwrap();
 
+    // we now have all the right coefficients to define the polynomial
     let poly = DensePolynomial { coeffs };
 
-    let encode_f = |x: &F| -> Vec<u8> {
+    // let us define a function for serializing polynomial evaluations
+    let encode_point = |x: &F| -> Vec<u8> {
         let mut buffer: Vec<u8> = Vec::new();
         x.serialize_compressed(&mut buffer).unwrap();
         buffer
     };
 
-    let shares: Vec<(u64, Vec<u8>)> = (1..n+1)
-        .map(|i| (i, encode_f(&poly.evaluate(&F::from(i)))))
+    // Shamir shares are just evaluations of our polynomial above
+    let shares = (0..n)
+        .map(|_| 
+            { 
+                let x = F::rand(rng);
+                let y = poly.evaluate(&x);
+                (encode_point(&x), encode_point(&y))
+            }
+        )
         .collect();
 
     shares
 }
 
-//for decoding: F::deserialize_compressed(buf.as_slice()).unwrap()
 
+/*
+ * recover implements the Shamir reconstruction algorithm,
+ * where access <- (t,n) describes the access structure, and
+ * shares contains the polynomial points { (x,y) }, where x is
+ * some field element, and y is the polynomial evaluation at x.
+ */
 pub fn recover(
     access: (u64, u64),
-    shares: Vec<(u64, Vec<u8>)>
+    shares: Vec<(Vec<u8>, Vec<u8>)>
 ) -> [u8; λ] {
-    let (t, n) = access;
 
-    let xs: Vec<u64> = shares
+    // parse the access structure description
+    let (t, _n) = access;
+
+    // assert that we are given enough shares to perform the reconstruction
+    assert!(shares.len() as u64 >= t);
+
+    // let us parse all Shamir shares as field elements
+
+    let xs: Vec<F> = shares
         .iter()
-        .map(|(x, _)| *x)
+        .map(|(x, _)| F::deserialize_compressed(&x[..]).unwrap())
         .collect();
 
-    let shares: Vec<F> = shares
+    let ys: Vec<F> = shares
         .iter()
-        .map(|(_, s)| F::deserialize_compressed(&s[..]).unwrap())
+        .map(|(_, y)| F::deserialize_compressed(&y[..]).unwrap())
         .collect();
 
-    //compute lagrange coefficients w.r.t. x = 0
-    let lagrange_coeffs = lagrange_coefficients(&xs[..], 0);
+    // compute lagrange coefficients w.r.t. x = 0.
+    // we choose x = 0 because we encoded our secret at f(0)
+    let lagrange_coeffs = lagrange_coefficients(&xs[..], F::from(0));
 
     //secret f(0) as a field element
-    let secret_f = shares
+    let secret = ys
         .iter()
         .zip(lagrange_coeffs.iter())
         .fold(F::from(0), |acc, (a,b)| acc + (a * b));
     
-    let secret_bigint = secret_f.into_bigint();
-    let secret_bytes = secret_bigint.to_bytes_be();
+    // serialize secret into big-endian representation
+    let secret_bytes = secret.into_bigint().to_bytes_be();
 
+    // our 128 bit key should be in the below slice
     secret_bytes[λ..2*λ].try_into().unwrap()
 
 }
 
-fn lagrange_coefficients(xs: &[u64], x: u64) -> Vec<F> {
+/*
+ * Naive lagrange interpolation over the input x-coordinates.
+ * This method computes the lagrange coefficients, which should
+ * be used to compute an inner product with the y-coordinates.
+ * reference: https://en.wikipedia.org/wiki/Lagrange_polynomial
+*/
+fn lagrange_coefficients(xs: &[F], x: F) -> Vec<F> {
     let mut output = Vec::new();
-    //assert!(xs.len() > 1); //undefined for 1 point
+
     for (i, &x_i) in xs.iter().enumerate() {
         let mut l_i = F::from(1);
         for (j, &x_j) in xs.iter().enumerate() {
             if i != j {
-                let numerator = F::from(x) - F::from(x_j);
-                let denominator = F::from(x_i) - F::from(x_j);
-                l_i *= numerator / denominator;
+                l_i *= (x - x_j) / (x_i - x_j);
             }
         }
         output.push(l_i);
@@ -97,6 +137,11 @@ fn lagrange_coefficients(xs: &[u64], x: u64) -> Vec<F> {
     output
 }
 
+/*
+ * Encodes a byte array as bit array, in a Big endian encoding.
+ * We iterate over each byte in the order of its index in the input x,
+ * and for each byte we write the bits in order from LSB to MSB.
+ */
 fn bytes_to_bits_be(x: &[u8]) -> Vec<bool> {
     //convert byte array to bit array for BigInt conversion
     let mut output: Vec<bool> = Vec::new();

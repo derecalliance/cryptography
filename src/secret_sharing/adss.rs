@@ -23,10 +23,10 @@ use crate::secret_sharing::*;
 /// derived from Fig 8 of https://eprint.iacr.org/2020/800.pdf
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ADSSShare {
-    /// unique id for the share (between 1 and n)
-    share_id: u64,
+    /// unique id for the share
+    share_id: Vec<u8>,
     /// (t,n) access structure description
-    threshold_as: (u64, u64),
+    threshold_access_structure: (u64, u64),
     /// serialized element of finite field
     sec: Vec<u8>,
     /// AES encryption of the secret message
@@ -51,7 +51,7 @@ impl ADSSShare {
 
 pub fn recover(shares: Vec<ADSSShare>) -> Vec<u8> {
     assert!(shares.len() > 0);
-    let access = shares[0].threshold_as.clone();
+    let access = shares[0].threshold_access_structure.clone();
     let j = shares[0].pub_j.clone();
     let c = shares[0].pub_c.clone();
     let d: [u8; 16] = shares[0].pub_d.clone().try_into().unwrap();
@@ -59,7 +59,7 @@ pub fn recover(shares: Vec<ADSSShare>) -> Vec<u8> {
 
     let shamir_shares = shares
         .iter()
-        .map(|s| (s.share_id, s.sec.clone()))
+        .map(|s| (s.share_id.clone(), s.sec.clone()))
         .collect();
 
     let k = shamir::recover(access, shamir_shares);
@@ -104,7 +104,7 @@ pub fn share(
     for (share_id, share_bytes) in shamir_shares {
         output.push(ADSSShare {
             share_id: share_id, 
-            threshold_as: access_structure, 
+            threshold_access_structure: access_structure, 
             sec: share_bytes, 
             pub_c: c.clone(), 
             pub_d: d.clone(), 
