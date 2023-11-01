@@ -9,6 +9,12 @@ use aes::cipher::{
 use sha2::{Sha256, Digest};
 use crate::secret_sharing::*;
 
+pub fn compute_sha256_hash(input: &[u8]) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.update(input);
+    hasher.finalize().to_vec()
+}
+
 pub fn prg_seed_expansion(rand: &[u8]) -> Option<[u8; 32]> {
     if rand.len() != 16 { //expecting only 128 bit keys
         return None;
@@ -60,7 +66,7 @@ pub fn decrypt_message(ctxt: &[u8], key: &[u8; λ]) -> Vec<u8> {
 pub fn random_oracle(msg: &[u8], rand: &[u8], tag: &[u8]) -> Vec<u8> {
     let mut output : Vec<u8> = Vec::new();
 
-    for i in 0..2 {
+    for i in 0..4 {
         // create a Sha256 object
         let mut hasher = Sha256::new();
         // H(msg || rand || tag)
