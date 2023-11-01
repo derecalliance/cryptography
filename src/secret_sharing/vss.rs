@@ -10,6 +10,8 @@ use crate::secret_sharing::*;
 
 use super::utils::compute_sha256_hash;
 
+const MERKLE_TREE_DEPTH: u32 = 7;
+
 /// components of a secret share in ADSS;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VSSShare {
@@ -63,8 +65,16 @@ pub fn share(
         &mut rng
     );
 
-    let merkle_tree = build_merkle_tree(&shamir_shares, 5, seed2);
-    let merkle_proofs = extract_merkle_proofs(&merkle_tree, 5, access_structure.1);
+    let merkle_tree = build_merkle_tree(
+        &shamir_shares,
+        MERKLE_TREE_DEPTH,
+        seed2
+    );
+    let merkle_proofs = extract_merkle_proofs(
+        &merkle_tree,
+        MERKLE_TREE_DEPTH,
+        access_structure.1
+    );
     
     let mut output = vec![];
     for (i, (x, y)) in shamir_shares.iter().enumerate() {
@@ -81,7 +91,7 @@ pub fn share(
 }
 
 // reconstructs a secret from shares
-pub fn recover(shares: &Vec<VSSShare>) -> Vec<u8> {
+pub fn recover(shares: &Vec<VSSShare>) -> Option<Vec<u8>> {
     assert!(shares.len() > 0);
     let access = shares[0].threshold_access_structure.clone();
     let c = shares[0].encrypted_secret.clone();
@@ -91,10 +101,53 @@ pub fn recover(shares: &Vec<VSSShare>) -> Vec<u8> {
         .map(|s| (s.x.clone(), s.y.clone()))
         .collect();
 
-    let k = shamir::recover(access, shamir_shares);
-    let msg = utils::decrypt_message(&c, &k);
+    if !verify_shares(shares) {
+        None
+    } else {
+        let k = shamir::recover(access, shamir_shares);
+        let msg = utils::decrypt_message(&c, &k);
+    
+        Some(msg)
+    }
+}
 
-    msg
+// this function check that all shares have the same 
+// commitment (and same encrypted_secret),
+// and validate with respect to that commitment
+pub fn verify_shares(shares: &Vec<VSSShare>) -> bool {
+
+    let commitment = &shares[0].commitment;
+    let encrypted_secret = &shares[0].encrypted_secret;
+
+    for share in shares {
+        // first check if this share has the same committment 
+        // or ciphertext as all other shares
+        if &share.commitment != commitment ||
+            &share.encrypted_secret != encrypted_secret {
+                return false;
+        }
+
+        // now verify the Merkle path
+
+        // first compute hash of this share
+        let mut on_path_hash = leaf_hash((&share.x, &share.y));
+
+        for (is_left, node_hash) in share.merkle_path.iter() {
+            on_path_hash = if *is_left {
+                //sibling is on the left
+                intermediate_hash(&node_hash, &on_path_hash)
+            } else {
+                intermediate_hash(&on_path_hash, &node_hash)
+            }
+        }
+        
+        //on_path_hash should equal the merkle root
+        if &on_path_hash != commitment {
+            return false;
+        }
+    }
+
+    true
 }
 
 // builds a 2-ary merkle tree over shares
@@ -126,7 +179,7 @@ fn build_merkle_tree(shares: &[(Vec<u8>, Vec<u8>)],
         let node_label = num_leaf_nodes + i;
         if i < shares.len() {
             // hash the share's (x,y); node root's label starts at 1
-            merkle_nodes[node_label - 1] = leaf_hash(&shares[i]);
+            merkle_nodes[node_label - 1] = leaf_hash((&shares[i].0, &shares[i].1));
         } else {
             // generate a garbage values for non-existent leaf nodes
             let mut rand = [0u8; 32];
@@ -160,7 +213,7 @@ fn build_merkle_tree(shares: &[(Vec<u8>, Vec<u8>)],
 // extract merkle proofs for first n leaves in a merkle tree of input depth
 fn extract_merkle_proofs(
     tree: &Vec<Vec<u8>>,
-    depth: usize, 
+    depth: u32, 
     n: u64
 ) -> Vec<Vec<(bool, Vec<u8>)>> {
     assert!((tree.len() + 1) > 2 && 
@@ -203,7 +256,7 @@ fn extract_merkle_proofs(
 }
 
 // A share's hash is SHA256(x || y).
-fn leaf_hash(share: &(Vec<u8>, Vec<u8>)) -> Vec<u8> {
+fn leaf_hash(share: (&Vec<u8>, &Vec<u8>)) -> Vec<u8> {
     let mut hasher_input = Vec::new();
     hasher_input.extend_from_slice(&share.0);
     hasher_input.extend_from_slice(&share.1);
@@ -241,7 +294,7 @@ mod tests {
         let shares = share((3,5), &msg, &rand);
         let recovered = recover(&shares);
 
-        assert_eq!(msg, recovered[..]);
+        assert_eq!(msg, recovered.unwrap()[..]);
     }
 
     #[test]
