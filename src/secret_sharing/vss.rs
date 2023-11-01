@@ -235,7 +235,6 @@ fn extract_merkle_proofs(
 
     // rust ranges are exclusive on the hi end
     for label in lo..(hi+1) {
-        println!("Extracting proof for node {}", label);
         // the merkle path should have depth number of nodes
         let mut current_label = label;
         let mut merkle_path: Vec<(bool, Vec<u8>)> = Vec::new();
