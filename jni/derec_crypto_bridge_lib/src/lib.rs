@@ -15,7 +15,7 @@ use jni::sys::jint;
 
 use protobuf::Message;
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
-use share::{DerecCryptoBridgeMessage, CommittedDeRecShare, DeRecShare};
+use share::{DerecCryptoBridgeMessage, CommittedDeRecShare, DeRecShare, committed_de_rec_share};
 
 use derec_crypto::secret_sharing::vss::*;
 
@@ -82,3 +82,39 @@ pub extern "system" fn Java_DerecCryptoBridge_share<'local>(
 }
 
 
+#[no_mangle]
+pub extern "system" fn Java_DerecCryptoBridge_recover<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+    in_proto_msg: JByteArray<'local>,
+) -> JByteArray<'local> {
+    // First, we have to get the byte[] out of java.
+    let proto_msg = env.convert_byte_array(&in_proto_msg).unwrap();
+    let derec_bridge_msg = DerecCryptoBridgeMessage::parse_from_bytes(&proto_msg).unwrap();
+
+    let mut vss_shares: Vec<VSSShare> = vec![];
+    for committed_derec_share in derec_bridge_msg.shares {
+        let derec_share = DeRecShare::parse_from_bytes(&committed_derec_share.deRecShare).unwrap();
+
+        let mut merkle_path = vec![];
+        for sibling_hash in committed_derec_share.merklePath {
+            merkle_path.push((sibling_hash.isLeft, sibling_hash.hash));
+        }
+
+        vss_shares.push(
+            VSSShare { 
+                x: derec_share.x, 
+                y: derec_share.y, 
+                encrypted_secret: derec_share.encryptedSecret, 
+                commitment: committed_derec_share.commitment, 
+                merkle_path: merkle_path
+            }
+        );
+    }
+
+    let recovered = recover(&vss_shares).unwrap();
+
+    // Then we have to create a new java byte[] to return.
+    let output = env.byte_array_from_slice(&recovered).unwrap();
+    output
+}
