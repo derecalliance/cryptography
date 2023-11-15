@@ -76,15 +76,8 @@ pub fn share<R: Rng>(
  * some field element, and y is the polynomial evaluation at x.
  */
 pub fn recover(
-    access: (u64, u64),
     shares: Vec<(Vec<u8>, Vec<u8>)>
 ) -> [u8; λ] {
-
-    // parse the access structure description
-    let (t, _n) = access;
-
-    // assert that we are given enough shares to perform the reconstruction
-    assert!(shares.len() as u64 >= t);
 
     // let us parse all Shamir shares as field elements
 
@@ -178,7 +171,7 @@ mod tests {
         let mut rng = rand_chacha::ChaCha8Rng::from_seed(seed);
 
         let shares = share(&secret, (3, 5), &mut rng);
-        let recovered = recover((3, 5), shares);
+        let recovered = recover(shares);
 
         assert_eq!(secret, recovered);
     }

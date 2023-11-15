@@ -1,0 +1,17 @@
+[package]
+name = "derec_crypto_bridge_lib"
+version = "0.1.0"
+authors = ["Rohit Sinha <rohit@swirldslabs.com>"]
+edition = "2021"
+
+[dependencies]
+jni = "*"
+protobuf = "3"
+derec-crypto = { path = "../.."}
+
+[build-dependencies]
+protobuf-codegen = "3"
+protoc-rust = "^2.0"
+
+[lib]
+crate_type = ["cdylib"]

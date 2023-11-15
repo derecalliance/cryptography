@@ -15,19 +15,17 @@ const MERKLE_TREE_DEPTH: u32 = 7;
 /// components of a secret share in ADSS;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VSSShare {
-    /// (t,n) access structure description
-    threshold_access_structure: (u64, u64),
     /// we use the x-coordinate to uniquely identify shares
-    x: Vec<u8>,
+    pub x: Vec<u8>,
     /// we use the y-coordinate as the share
-    y: Vec<u8>,
+    pub y: Vec<u8>,
     /// AES encryption of the secret message
-    encrypted_secret: Vec<u8>,
+    pub encrypted_secret: Vec<u8>,
     /// Merkle-root commitment to all shares
-    commitment: Vec<u8>,
+    pub commitment: Vec<u8>,
     /// bottom-up Merkle authentication path
     /// bool denotes isLeft, while vec<u8> is the SHA-384 hash
-    merkle_path: Vec<(bool, Vec<u8>)>
+    pub merkle_path: Vec<(bool, Vec<u8>)>
 }
 
 /// implements constructor for ADSSShare 
@@ -79,7 +77,6 @@ pub fn share(
     let mut output = vec![];
     for (i, (x, y)) in shamir_shares.iter().enumerate() {
         output.push(VSSShare {
-            threshold_access_structure: access_structure, 
             x: x.to_owned(), 
             y: y.to_owned(), 
             encrypted_secret: c.clone(), 
@@ -93,7 +90,6 @@ pub fn share(
 // reconstructs a secret from shares
 pub fn recover(shares: &Vec<VSSShare>) -> Option<Vec<u8>> {
     assert!(shares.len() > 0);
-    let access = shares[0].threshold_access_structure.clone();
     let c = shares[0].encrypted_secret.clone();
 
     let shamir_shares = shares
@@ -104,7 +100,7 @@ pub fn recover(shares: &Vec<VSSShare>) -> Option<Vec<u8>> {
     if !verify_shares(shares) {
         None
     } else {
-        let k = shamir::recover(access, shamir_shares);
+        let k = shamir::recover(shamir_shares);
         let msg = utils::decrypt_message(&c, &k);
     
         Some(msg)
