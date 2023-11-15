@@ -16,18 +16,18 @@ const MERKLE_TREE_DEPTH: u32 = 7;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VSSShare {
     /// (t,n) access structure description
-    threshold_access_structure: (u64, u64),
+    pub threshold_access_structure: (u64, u64),
     /// we use the x-coordinate to uniquely identify shares
-    x: Vec<u8>,
+    pub x: Vec<u8>,
     /// we use the y-coordinate as the share
-    y: Vec<u8>,
+    pub y: Vec<u8>,
     /// AES encryption of the secret message
-    encrypted_secret: Vec<u8>,
+    pub encrypted_secret: Vec<u8>,
     /// Merkle-root commitment to all shares
-    commitment: Vec<u8>,
+    pub commitment: Vec<u8>,
     /// bottom-up Merkle authentication path
     /// bool denotes isLeft, while vec<u8> is the SHA-384 hash
-    merkle_path: Vec<(bool, Vec<u8>)>
+    pub merkle_path: Vec<(bool, Vec<u8>)>
 }
 
 /// implements constructor for ADSSShare 
