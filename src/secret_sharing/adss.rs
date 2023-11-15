@@ -40,7 +40,7 @@ impl ADSSShare {
 /// the implementation below follows Fig 8 in https://eprint.iacr.org/2020/800.pdf
 pub fn recover(shares: &Vec<ADSSShare>) -> Vec<u8> {
     assert!(shares.len() > 0);
-    let access = shares[0].threshold_access_structure.clone();
+    let _access = shares[0].threshold_access_structure.clone();
     let j = shares[0].pub_j.clone();
     let c = shares[0].pub_c.clone();
     let d: [u8; 16] = shares[0].pub_d.clone().try_into().unwrap();
@@ -51,7 +51,7 @@ pub fn recover(shares: &Vec<ADSSShare>) -> Vec<u8> {
         .map(|s| (s.share_id.clone(), s.sec.clone()))
         .collect();
 
-    let k = shamir::recover(access, shamir_shares);
+    let k = shamir::recover(shamir_shares);
     
     let rand = utils::one_time_pad_rand(&d, &k);
     let msg = utils::decrypt_message(&c, &k);
