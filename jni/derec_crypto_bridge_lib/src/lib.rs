@@ -1,7 +1,5 @@
 // note: adapted from the example under https://github.com/jni-rs/jni-rs
 
-use std::array;
-
 // This is the interface to the JVM that we'll
 // call the majority of our methods on.
 use jni::JNIEnv;
@@ -15,7 +13,7 @@ use jni::sys::jint;
 
 use protobuf::Message;
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
-use share::{DerecCryptoBridgeMessage, CommittedDeRecShare, DeRecShare, committed_de_rec_share};
+use share::{DerecCryptoBridgeMessage, CommittedDeRecShare, DeRecShare};
 
 use derec_crypto::secret_sharing::vss::*;
 
