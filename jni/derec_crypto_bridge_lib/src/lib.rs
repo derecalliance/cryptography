@@ -1,7 +1,5 @@
 // note: adapted from the example under https://github.com/jni-rs/jni-rs
 
-use std::array;
-
 // This is the interface to the JVM that we'll
 // call the majority of our methods on.
 use jni::JNIEnv;
@@ -15,11 +13,15 @@ use jni::sys::jint;
 
 use protobuf::Message;
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
-use share::{DerecCryptoBridgeMessage, CommittedDeRecShare, DeRecShare, committed_de_rec_share};
+use bridge::{
+    DerecCryptoBridgeMessage,
+    CommittedDeRecShare,
+    DeRecShare,
+    committed_de_rec_share::SiblingHash
+};
 
 use derec_crypto::secret_sharing::vss::*;
 
-use crate::share::committed_de_rec_share::SiblingHash;
 
 // This `#[no_mangle]` keeps rust from "mangling" the name and making it unique
 // for this crate. The name follow a strict naming convention so that the
@@ -27,7 +29,7 @@ use crate::share::committed_de_rec_share::SiblingHash;
 // of a native method based on its name.
 
 #[no_mangle]
-pub extern "system" fn Java_DerecCryptoBridge_share<'local>(
+pub extern "system" fn Java_src_MerkledVSS_share<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_threshold: jint,
@@ -83,7 +85,7 @@ pub extern "system" fn Java_DerecCryptoBridge_share<'local>(
 
 
 #[no_mangle]
-pub extern "system" fn Java_DerecCryptoBridge_recover<'local>(
+pub extern "system" fn Java_src_MerkledVSS_recover<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_proto_msg: JByteArray<'local>,

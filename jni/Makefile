@@ -1,10 +1,8 @@
 java_run: lib
-	javac DerecCryptoBridge.java && java -Djava.library.path=derec_crypto_bridge_lib/target/debug/ DerecCryptoBridge
+	gradle run
 
 .PHONY: lib
-
-javah:
-	javah DerecCryptoBridge
+.PHONY: proto
 
 lib:
 	cd derec_crypto_bridge_lib && cargo build
