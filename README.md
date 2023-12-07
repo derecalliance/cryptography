@@ -16,3 +16,6 @@ On generating the Shamir shares, the client generates a Merkle tree over all `n`
 
 There is a caveat that during reconstruction, in some settings such as DeRec's use case, the client may not have any prior state; i.e., the client does not know the expected Merkle root. We address this by replicating the Merkle root within each share that is given to a shareholder. During reconstruction, the client looks for a root value that is present in at least a threshold `t` number of received shares; otherwise, reconstruction aborts.
 
+## Secure Channel
+
+We use the OpenPGP sign-then-encrypt functionality for all communication between parties. The key sizes are as follows: 4096-bit RSA keys (with AES-256) for encryption, P256 ECDSA keys for signing. We recommend the use of [PGPainless](https://github.com/pgpainless/pgpainless) for the implementation (see [PGPainless-keygen](https://github.com/pgpainless/pgpainless#easily-generate-keys) and [PGPainless-sign-then-encrypt](https://github.com/pgpainless/pgpainless#encrypt-and-sign-data).
