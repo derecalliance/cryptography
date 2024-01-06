@@ -1,7 +1,9 @@
 package src;
 
+import com.google.protobuf.ByteString;
 import src.ShamirInterfaces.*;
-import derec.crypto.bridge.Bridge.*;
+import org.derecalliance.derec.bridge.Bridge.*;
+import org.derecalliance.derec.protobuf.Storeshare.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,10 +49,12 @@ public class MerkledVSS implements Splitter {
         try {
             DerecCryptoBridgeMessage bridgeMsg = 
                 DerecCryptoBridgeMessage.parseFrom(bridgeOutput);
-            List<CommittedDeRecShare> shares = bridgeMsg.getSharesList();
+
             List<byte[]> output = new ArrayList<>();
-            for (CommittedDeRecShare share: shares) {
-                output.add(share.toByteArray());
+            for (ByteString share_bytes: bridgeMsg.getSharesList()) {
+                //CommittedDeRecShare share =
+                //      CommittedDeRecShare.parseFrom(share_bytes.toByteArray());
+                output.add(share_bytes.toByteArray());
             }
             return output;
         } catch(Exception e) {
@@ -60,17 +64,16 @@ public class MerkledVSS implements Splitter {
 
     public byte[] combine(byte[] id, int version, List<byte[]> shares) {
         try {
-            List<CommittedDeRecShare> protoShares = new ArrayList<>();
+            List<ByteString> protoShares = new ArrayList<>();
             for (byte[] share: shares) {
-                protoShares.add(CommittedDeRecShare.parseFrom(share));
+                protoShares.add(ByteString.copyFrom(share));
             }
 
             DerecCryptoBridgeMessage.Builder msgBuilder = DerecCryptoBridgeMessage.newBuilder();
             msgBuilder.addAllShares(protoShares);
             DerecCryptoBridgeMessage msg = msgBuilder.build();
 
-            byte[] recovered = recover(msg.toByteArray());
-            return recovered;
+            return recover(msg.toByteArray());
         } catch(Exception e) {
             return null;
         }

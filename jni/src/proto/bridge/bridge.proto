@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package org.derecalliance.derec.bridge;
+
+message DerecCryptoBridgeMessage {
+  repeated bytes shares = 1;
+}
+
+
+
