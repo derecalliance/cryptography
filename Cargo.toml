@@ -33,3 +33,4 @@ smallvec = "*"
 base64 = "*"
 hex = "*"
 thiserror = "*"
+p256 = { version = "*", features = ["pem", "alloc"] }
