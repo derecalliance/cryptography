@@ -33,4 +33,7 @@ smallvec = "*"
 base64 = "*"
 hex = "*"
 thiserror = "*"
-p256 = { version = "*", features = ["pem", "alloc"] }
+p256 = { version = "*", features = ["pem", "alloc", "ecdsa", "ecdh"] }
+pem = "*"
+ecies = {version = "*", features = ["std"]}
+libsecp256k1 = "*"
