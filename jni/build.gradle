@@ -16,12 +16,13 @@ mainClassName = "src.DerecCryptoBridgeTestMain"
 sourceSets {
   main {
     proto {
-      // In addition to the default 'src/main/proto'
-      srcDir 'src/proto'
+        // In addition to the default 'src/main/proto'
+        srcDir 'src/proto/bridge'
+        srcDir 'src/proto/protobufs'
     }
     java {
-      srcDirs 'src'
-      srcDirs 'build/generated/source/proto/main/java'
+        srcDirs 'src'
+        srcDirs 'build/generated/source/proto/main/java'
     }
   }
 }

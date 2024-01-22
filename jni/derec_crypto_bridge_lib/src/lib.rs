@@ -12,9 +12,12 @@ use jni::objects::{JClass, JByteArray};
 use jni::sys::jint;
 
 use protobuf::Message;
-include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
+include!(concat!(env!("OUT_DIR"), "/bridgeproto/mod.rs"));
 use bridge::{
     DerecCryptoBridgeMessage,
+};
+include!(concat!(env!("OUT_DIR"), "/derecproto/mod.rs"));
+use storeshare::{
     CommittedDeRecShare,
     DeRecShare,
     committed_de_rec_share::SiblingHash
@@ -74,7 +77,7 @@ pub extern "system" fn Java_src_MerkledVSS_share<'local>(
             committed_derec_share.merklePath.push(sibling_hash);
         }
 
-        out_msg.shares.push(committed_derec_share);
+        out_msg.shares.push(committed_derec_share.write_to_bytes().unwrap());
     }
     let out_bytes = out_msg.write_to_bytes().unwrap();
 
@@ -95,7 +98,8 @@ pub extern "system" fn Java_src_MerkledVSS_recover<'local>(
     let derec_bridge_msg = DerecCryptoBridgeMessage::parse_from_bytes(&proto_msg).unwrap();
 
     let mut vss_shares: Vec<VSSShare> = vec![];
-    for committed_derec_share in derec_bridge_msg.shares {
+    for committed_derec_share_bytes in derec_bridge_msg.shares {
+        let committed_derec_share = CommittedDeRecShare::parse_from_bytes(&committed_derec_share_bytes).unwrap();
         let derec_share = DeRecShare::parse_from_bytes(&committed_derec_share.deRecShare).unwrap();
 
         let mut merkle_path = vec![];

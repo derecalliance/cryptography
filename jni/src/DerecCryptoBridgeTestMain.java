@@ -19,5 +19,6 @@ public class DerecCryptoBridgeTestMain {
         byte[] recovered = splitter.combine(id, 0, shares);
         String recovered_value = new String(recovered, StandardCharsets.UTF_8);
         assert(recovered_value.equals("top_secret"));
+        System.out.println(recovered_value);
     }
 }

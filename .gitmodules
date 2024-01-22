@@ -1,0 +1,6 @@
+[submodule "jni/src/proto/protobufs"]
+	path = jni/src/proto/protobufs
+	url = https://github.com/derecalliance/protobufs
+[submodule "jni/derec_crypto_bridge_lib/src/proto/protobufs"]
+	path = jni/derec_crypto_bridge_lib/src/proto/protobufs
+	url = https://github.com/derecalliance/protobufs
