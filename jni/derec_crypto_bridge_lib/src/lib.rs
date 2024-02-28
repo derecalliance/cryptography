@@ -32,7 +32,7 @@ use derec_crypto::secret_sharing::vss::*;
 // of a native method based on its name.
 
 #[no_mangle]
-pub extern "system" fn Java_src_MerkledVSS_share<'local>(
+pub extern "system" fn Java_src_DerecCryptoImpl_share<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_threshold: jint,
@@ -88,7 +88,7 @@ pub extern "system" fn Java_src_MerkledVSS_share<'local>(
 
 
 #[no_mangle]
-pub extern "system" fn Java_src_MerkledVSS_recover<'local>(
+pub extern "system" fn Java_src_DerecCryptoImpl_recover<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_proto_msg: JByteArray<'local>,

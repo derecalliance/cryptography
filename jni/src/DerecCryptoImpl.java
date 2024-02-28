@@ -1,17 +1,20 @@
 package src;
 
-import com.google.protobuf.ByteString;
-import src.ShamirInterfaces.*;
-import org.derecalliance.derec.bridge.Bridge.*;
-import org.derecalliance.derec.protobuf.Storeshare.*;
-
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import com.google.protobuf.ByteString;
 
-public class MerkledVSS implements Splitter {
+import org.derecalliance.derec.bridge.Bridge.*;
+
+public class DerecCryptoImpl implements DerecCryptoInterface {
+
+    // load the rust implementation for the native methods
     static {
         System.loadLibrary("derec_crypto_bridge_lib");
     }
+
+    /**************** BEGIN RUST NATIVE METHODS DECLARATION ****************/
 
     // declare methods that we expect the rust side of the bridge to implement
     private static native byte[] share(
@@ -27,38 +30,51 @@ public class MerkledVSS implements Splitter {
         byte[] shares //protobuf encoding of DerecCryptoBridgeMessage
     );
 
-    private byte[] entropy;
-    private int count, threshold;
+    /**************** END RUST NATIVE METHODS DECLARATION ****************/
 
-    public MerkledVSS(byte[] entropy, int count, int threshold) {
-        this.entropy = entropy;
-        this.count = count;
-        this.threshold = threshold;
+    // all native methods are deterministic, and entropy is supplied by the app
+    private SecureRandom entropySource;
+
+    /**
+     * Constructor that chooses its own entropy source
+     * @return instance of DerecCryptoImpl
+     */
+    public DerecCryptoImpl() {
+        // we will use the secure random instance provided by the platform
+        this.entropySource = new SecureRandom();
     }
 
-    public List<byte[]> split(byte[] id, int version, byte[] secret) {
-        byte[] bridgeOutput = share(
-            this.threshold, 
-            this.count, 
-            secret, 
-            this.entropy,
-            version,
-            id
-        );
+    /**
+     * Constructor that uses the provided entropy source
+     * @return instance of DerecCryptoImpl
+     */
+    public DerecCryptoImpl(SecureRandom rand) {
+        this.entropySource = rand;
+    }
 
+    public List<byte[]> split(byte[] id, int version, byte[] secret, int count, int threshold) {
+
+        // sample some random bits
+        byte[] entropy = new byte[16];
+        this.entropySource.nextBytes(entropy);
+
+        // invoke the rust-land native method
+        byte[] bridgeOutput = share(threshold, count, secret, entropy, version, id);
+
+        // let's try parsing the output and getting the shares
         try {
-            DerecCryptoBridgeMessage bridgeMsg = 
+            DerecCryptoBridgeMessage bridgeMsg =
                 DerecCryptoBridgeMessage.parseFrom(bridgeOutput);
 
+            // we will be returning the following list of byte arrays
             List<byte[]> output = new ArrayList<>();
             for (ByteString share_bytes: bridgeMsg.getSharesList()) {
-                //CommittedDeRecShare share =
-                //      CommittedDeRecShare.parseFrom(share_bytes.toByteArray());
                 output.add(share_bytes.toByteArray());
             }
             return output;
+
         } catch(Exception e) {
-            return null;
+            return null; //TODO: do better error handling
         }
     }
 
