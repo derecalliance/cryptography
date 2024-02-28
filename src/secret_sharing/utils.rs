@@ -32,6 +32,7 @@ pub fn compute_sha256_hash(input: &[u8]) -> Vec<u8> {
     hasher.finalize().to_vec()
 }
 
+#[allow(dead_code)]
 pub fn prg_seed_expansion(rand: &[u8]) -> Option<[u8; 32]> {
     if rand.len() != 16 { //expecting only 128 bit keys
         return None;
@@ -45,6 +46,7 @@ pub fn prg_seed_expansion(rand: &[u8]) -> Option<[u8; 32]> {
     Some(seed)
 }
 
+#[allow(dead_code)]
 pub fn one_time_pad_rand(
     rand: &[u8; λ], 
     key: &[u8; λ]

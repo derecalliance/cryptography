@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-pub mod adss;
+//pub mod adss;
 pub mod vss;
 mod shamir;
 mod utils;

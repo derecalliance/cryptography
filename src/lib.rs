@@ -16,4 +16,4 @@
  */
 
 pub mod secret_sharing;
-pub mod channel;
+pub mod secure_channel;
