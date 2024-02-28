@@ -6,5 +6,8 @@ message DerecCryptoBridgeMessage {
   repeated bytes shares = 1;
 }
 
-
+message DerecCryptoBridgeKeygenMessage {
+  bytes pubkey = 1;
+  bytes privkey = 2;
+}
 

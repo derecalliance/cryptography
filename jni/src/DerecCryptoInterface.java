@@ -22,4 +22,11 @@ public interface DerecCryptoInterface {
      * @return a byte-array encoded secret data
      */
     public byte[] combine(byte[] id, int version, List<byte[]> shares);
+
+    /**
+     * Generate a PEM-encoded public-private key pair
+     * @return 2-dim byte array, where index 0 holds
+     * the public key and index 1 holds the private key
+     */
+    public Object[] encryptionKeyGen();
 }
