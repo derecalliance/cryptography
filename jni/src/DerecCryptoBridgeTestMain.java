@@ -13,23 +13,34 @@ public class DerecCryptoBridgeTestMain {
         byte[] id = "some_id".getBytes();
         byte[] secret = "top_secret".getBytes();
         
-        List<byte[]> shares = cryptoImpl.split(id, 0, secret, 5, 3);
-        byte[] recovered = cryptoImpl.combine(id, 0, shares);
+        List<byte[]> shares = cryptoImpl.share(id, 0, secret, 5, 3);
+        byte[] recovered = cryptoImpl.recover(id, 0, shares);
 
         String recovered_value = new String(recovered, StandardCharsets.UTF_8);
         assert(recovered_value.equals("top_secret"));
         System.out.println(recovered_value);
 
         Object[] enc_key = cryptoImpl.encryptionKeyGen();
-        byte[] ek = (byte[]) enc_key[0];
-        byte[] dk = (byte[]) enc_key[1];
-        System.out.println("Generated enc pub key of length: " + ek.length);
-        System.out.println("Generated enc priv key of length: " + dk.length);
+        byte[] alice_ek = (byte[]) enc_key[0];
+        byte[] alice_dk = (byte[]) enc_key[1];
 
         Object[] sign_key = cryptoImpl.signatureKeyGen();
-        byte[] vk = (byte[]) sign_key[0];
-        byte[] sk = (byte[]) sign_key[1];
-        System.out.println("Generated enc pub key of length: " + vk.length);
-        System.out.println("Generated enc priv key of length: " + sk.length);
+        byte[] alice_vk = (byte[]) sign_key[0];
+        byte[] alice_sk = (byte[]) sign_key[1];
+
+        enc_key = cryptoImpl.encryptionKeyGen();
+        byte[] bob_ek = (byte[]) enc_key[0];
+        byte[] bob_dk = (byte[]) enc_key[1];
+
+        sign_key = cryptoImpl.signatureKeyGen();
+        byte[] bob_vk = (byte[]) sign_key[0];
+        byte[] bob_sk = (byte[]) sign_key[1];
+
+
+        byte[] ciphertext = cryptoImpl.signThenEncrypt(secret, alice_sk, bob_ek);
+        byte[] plaintext = cryptoImpl.decryptThenVerify(ciphertext, alice_vk, bob_dk);
+        recovered_value = new String(recovered, StandardCharsets.UTF_8);
+        assert(recovered_value.equals("top_secret"));
+        System.out.println(recovered_value);
     }
 }

@@ -17,7 +17,7 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
     /**************** BEGIN RUST NATIVE METHODS DECLARATION ****************/
 
     // declare methods that we expect the rust side of the bridge to implement
-    private static native byte[] share(
+    private static native byte[] nativeShare(
         int threshold, // reconstruction threshold of secret sharing scheme
         int helperCount, // total number of shares to generate
         byte[] secret, // arbitrary length secret
@@ -26,13 +26,25 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
         byte[] secret_id // unique identifier for the secret
     );
 
-    private static native byte[] recover(
+    private static native byte[] nativeRecover(
         byte[] shares //protobuf encoding of DerecCryptoBridgeMessage
     );
 
-    public native byte[] encKeyGen();
+    public native byte[] nativeEncKeyGen();
 
-    public native byte[] signKeyGen();
+    public native byte[] nativeSignKeyGen();
+
+    public native byte[] nativeSignThenEncrypt(
+        byte[] plaintext, // arbitrary length plaintext
+        byte[] sign_privkey, // private key for signing
+        byte[] enc_pubkey // public key for encryption
+    );
+
+    public native byte[] nativeDecryptThenVerify(
+        byte[] ciphertext, // arbitrary length ciphertext
+        byte[] sign_verifkey, // public key for verification
+        byte[] enc_privkey // private key for decryption
+    );
 
     /**************** END RUST NATIVE METHODS DECLARATION ****************/
 
@@ -56,14 +68,14 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
         this.entropySource = rand;
     }
 
-    public List<byte[]> split(byte[] id, int version, byte[] secret, int count, int threshold) {
+    public List<byte[]> share(byte[] id, int version, byte[] secret, int count, int threshold) {
 
         // sample some random bits
         byte[] entropy = new byte[16];
         this.entropySource.nextBytes(entropy);
 
         // invoke the rust-land native method
-        byte[] bridgeOutput = share(threshold, count, secret, entropy, version, id);
+        byte[] bridgeOutput = nativeShare(threshold, count, secret, entropy, version, id);
 
         // let's try parsing the output and getting the shares
         try {
@@ -82,7 +94,7 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
         }
     }
 
-    public byte[] combine(byte[] id, int version, List<byte[]> shares) {
+    public byte[] recover(byte[] id, int version, List<byte[]> shares) {
         try {
             List<ByteString> protoShares = new ArrayList<>();
             for (byte[] share: shares) {
@@ -93,14 +105,14 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
             msgBuilder.addAllShares(protoShares);
             DerecCryptoBridgeMessage msg = msgBuilder.build();
 
-            return recover(msg.toByteArray());
+            return nativeRecover(msg.toByteArray());
         } catch(Exception e) {
             return null;
         }
     }
 
     public Object[] encryptionKeyGen() {
-        byte[] bridgeOutput = encKeyGen();
+        byte[] bridgeOutput = nativeEncKeyGen();
 
         try {
             DerecCryptoBridgeKeygenMessage bridgeMsg =
@@ -117,7 +129,7 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
     }
 
     public Object[] signatureKeyGen() {
-        byte[] bridgeOutput = signKeyGen();
+        byte[] bridgeOutput = nativeSignKeyGen();
 
         try {
             DerecCryptoBridgeKeygenMessage bridgeMsg =
@@ -131,5 +143,13 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
         } catch(Exception e) {
             return null; //TODO: do better error handling
         }
+    }
+
+    public byte[] signThenEncrypt(byte[] message, byte[] signPrivKey, byte[] encPubKey) {
+        return nativeSignThenEncrypt(message, signPrivKey, encPubKey);
+    }
+
+    public byte[] decryptThenVerify(byte[] ciphertext, byte[] verifPubKey, byte[] decPrivKey) {
+        return nativeDecryptThenVerify(ciphertext, verifPubKey, decPrivKey);
     }
 }
