@@ -21,9 +21,15 @@ public class DerecCryptoBridgeTestMain {
         System.out.println(recovered_value);
 
         Object[] enc_key = cryptoImpl.encryptionKeyGen();
-        byte[] pk = (byte[]) enc_key[0];
-        byte[] sk = (byte[]) enc_key[1];
-        System.out.println("Generated pub key of length: " + pk.length);
-        System.out.println("Generated priv key of length: " + sk.length);
+        byte[] ek = (byte[]) enc_key[0];
+        byte[] dk = (byte[]) enc_key[1];
+        System.out.println("Generated enc pub key of length: " + ek.length);
+        System.out.println("Generated enc priv key of length: " + dk.length);
+
+        Object[] sign_key = cryptoImpl.signatureKeyGen();
+        byte[] vk = (byte[]) sign_key[0];
+        byte[] sk = (byte[]) sign_key[1];
+        System.out.println("Generated enc pub key of length: " + vk.length);
+        System.out.println("Generated enc priv key of length: " + sk.length);
     }
 }

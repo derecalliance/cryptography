@@ -32,6 +32,8 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
 
     public native byte[] encKeyGen();
 
+    public native byte[] signKeyGen();
+
     /**************** END RUST NATIVE METHODS DECLARATION ****************/
 
     // all native methods are deterministic, and entropy is supplied by the app
@@ -99,6 +101,23 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
 
     public Object[] encryptionKeyGen() {
         byte[] bridgeOutput = encKeyGen();
+
+        try {
+            DerecCryptoBridgeKeygenMessage bridgeMsg =
+                DerecCryptoBridgeKeygenMessage.parseFrom(bridgeOutput);
+
+            return new Object[] {
+                bridgeMsg.getPubkey().toByteArray(),
+                bridgeMsg.getPrivkey().toByteArray()
+            };
+            
+        } catch(Exception e) {
+            return null; //TODO: do better error handling
+        }
+    }
+
+    public Object[] signatureKeyGen() {
+        byte[] bridgeOutput = signKeyGen();
 
         try {
             DerecCryptoBridgeKeygenMessage bridgeMsg =

@@ -29,4 +29,11 @@ public interface DerecCryptoInterface {
      * the public key and index 1 holds the private key
      */
     public Object[] encryptionKeyGen();
+
+    /**
+     * Generate a PEM-encoded public-private key pair
+     * @return 2-dim byte array, where index 0 holds
+     * the encryption key and index 1 holds the decryption key
+     */
+    public Object[] signatureKeyGen();
 }

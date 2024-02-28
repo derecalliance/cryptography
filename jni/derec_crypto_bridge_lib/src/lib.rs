@@ -43,6 +43,7 @@ use storeshare::{
 
 use derec_crypto::secret_sharing::vss::*;
 use derec_crypto::secure_channel::encrypt::*;
+use derec_crypto::secure_channel::sign::*;
 
 
 // This `#[no_mangle]` keeps rust from "mangling" the name and making it unique
@@ -154,6 +155,24 @@ pub extern "system" fn Java_src_DerecCryptoImpl_encKeyGen<'local>(
 
     let mut keygen_bridge_msg = DerecCryptoBridgeKeygenMessage::new();
     keygen_bridge_msg.pubkey = pk.to_owned();
+    keygen_bridge_msg.privkey = sk.to_owned();
+
+    let out_bytes = keygen_bridge_msg.write_to_bytes().unwrap();
+
+    // Then we have to create a new java byte[] to return.
+    env.byte_array_from_slice(&out_bytes).unwrap()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_src_DerecCryptoImpl_signKeyGen<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+) -> JByteArray<'local> {
+
+    let (vk, sk) = generate_signing_key();
+
+    let mut keygen_bridge_msg = DerecCryptoBridgeKeygenMessage::new();
+    keygen_bridge_msg.pubkey = vk.to_owned();
     keygen_bridge_msg.privkey = sk.to_owned();
 
     let out_bytes = keygen_bridge_msg.write_to_bytes().unwrap();
