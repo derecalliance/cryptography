@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) DeRec Alliance and its Contributors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // note: adapted from the example under https://github.com/jni-rs/jni-rs
 
 // This is the interface to the JVM that we'll
@@ -15,6 +32,7 @@ use protobuf::Message;
 include!(concat!(env!("OUT_DIR"), "/bridgeproto/mod.rs"));
 use bridge::{
     DerecCryptoBridgeMessage,
+    DerecCryptoBridgeKeygenMessage,
 };
 include!(concat!(env!("OUT_DIR"), "/derecproto/mod.rs"));
 use storeshare::{
@@ -24,6 +42,8 @@ use storeshare::{
 };
 
 use derec_crypto::secret_sharing::vss::*;
+use derec_crypto::secure_channel::{decrypt_then_verify, encrypt::*, sign_then_encrypt};
+use derec_crypto::secure_channel::sign::*;
 
 
 // This `#[no_mangle]` keeps rust from "mangling" the name and making it unique
@@ -32,7 +52,7 @@ use derec_crypto::secret_sharing::vss::*;
 // of a native method based on its name.
 
 #[no_mangle]
-pub extern "system" fn Java_src_MerkledVSS_share<'local>(
+pub extern "system" fn Java_src_DerecCryptoImpl_nativeShare<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_threshold: jint,
@@ -88,7 +108,7 @@ pub extern "system" fn Java_src_MerkledVSS_share<'local>(
 
 
 #[no_mangle]
-pub extern "system" fn Java_src_MerkledVSS_recover<'local>(
+pub extern "system" fn Java_src_DerecCryptoImpl_nativeRecover<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_proto_msg: JByteArray<'local>,
@@ -123,4 +143,96 @@ pub extern "system" fn Java_src_MerkledVSS_recover<'local>(
     // Then we have to create a new java byte[] to return.
     let output = env.byte_array_from_slice(&recovered).unwrap();
     output
+}
+
+#[no_mangle]
+pub extern "system" fn Java_src_DerecCryptoImpl_nativeEncKeyGen<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+) -> JByteArray<'local> {
+
+    let (pk,sk) = generate_encryption_key();
+
+    let mut keygen_bridge_msg = DerecCryptoBridgeKeygenMessage::new();
+    keygen_bridge_msg.pubkey = pk.to_owned();
+    keygen_bridge_msg.privkey = sk.to_owned();
+
+    let out_bytes = keygen_bridge_msg.write_to_bytes().unwrap();
+
+    // Then we have to create a new java byte[] to return.
+    env.byte_array_from_slice(&out_bytes).unwrap()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_src_DerecCryptoImpl_nativeSignKeyGen<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+) -> JByteArray<'local> {
+
+    let (vk, sk) = generate_signing_key();
+
+    let mut keygen_bridge_msg = DerecCryptoBridgeKeygenMessage::new();
+    keygen_bridge_msg.pubkey = vk.to_owned();
+    keygen_bridge_msg.privkey = sk.to_owned();
+
+    let out_bytes = keygen_bridge_msg.write_to_bytes().unwrap();
+
+    // Then we have to create a new java byte[] to return.
+    env.byte_array_from_slice(&out_bytes).unwrap()
+}
+
+// public native byte[] nativeSignThenEncrypt(
+//     byte[] plaintext, // arbitrary length plaintext
+//     byte[] sign_privkey, // private key for signing
+//     byte[] enc_pubkey // public key for encryption
+// );
+
+// public native byte[] nativeDecryptThenVerify(
+//     byte[] ciphertext, // arbitrary length ciphertext
+//     byte[] sign_verifkey, // public key for verification
+//     byte[] enc_privkey // private key for decryption
+// );
+
+#[no_mangle]
+pub extern "system" fn Java_src_DerecCryptoImpl_nativeSignThenEncrypt<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+    in_plaintext: JByteArray<'local>,
+    in_sign_privkey: JByteArray<'local>,
+    in_enc_pubkey: JByteArray<'local>,
+) -> JByteArray<'local> {
+
+    let plaintext = env.convert_byte_array(&in_plaintext).unwrap();
+    let sign_privkey = env.convert_byte_array(&in_sign_privkey).unwrap();
+    let enc_pubkey = env.convert_byte_array(&in_enc_pubkey).unwrap();
+
+    let ciphertext = sign_then_encrypt(
+        &plaintext,
+        &sign_privkey,
+        &enc_pubkey
+    );
+
+    env.byte_array_from_slice(&ciphertext).unwrap()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_src_DerecCryptoImpl_nativeDecryptThenVerify<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+    in_ciphertext: JByteArray<'local>,
+    in_sign_verifkey: JByteArray<'local>,
+    in_enc_privkey: JByteArray<'local>,
+) -> JByteArray<'local> {
+
+    let ciphertext = env.convert_byte_array(&in_ciphertext).unwrap();
+    let sign_verifkey = env.convert_byte_array(&in_sign_verifkey).unwrap();
+    let enc_privkey = env.convert_byte_array(&in_enc_privkey).unwrap();
+
+    let plaintext = decrypt_then_verify(
+        &ciphertext,
+        &sign_verifkey,
+        &enc_privkey
+    ).unwrap();
+
+    env.byte_array_from_slice(&plaintext).unwrap()
 }
