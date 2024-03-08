@@ -15,76 +15,74 @@
  * limitations under the License.
  */
 
-use p256::{
-    ecdsa::{
-        signature::{Signer, Verifier},
-        Signature, SigningKey, VerifyingKey,
-    },
-    pkcs8::EncodePrivateKey,
-    PublicKey, SecretKey,
-};
+
 use rand_chacha::rand_core::OsRng;
+use libsecp256k1::{PublicKey, SecretKey, Message, Signature};
+use sha2::{Sha256, Digest};
+use pem::{Pem, parse, encode};
+
+fn hash_message_to_byte_array(message: &[u8]) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(message);
+    let result = hasher.finalize();
+    result.as_slice().try_into().unwrap()
+}
 
 // outputs the pair (pub key, secret key), 
 // both in PEM encoding (as a utf-8 byte array)
 pub fn generate_signing_key() -> (Vec<u8>, Vec<u8>) {
-    // Generate secret key
-    let secret_key = SecretKey::random(&mut OsRng);
+    let sk = SecretKey::random(&mut OsRng);
+    let pk = PublicKey::from_secret_key(&sk);
 
-    // serialize secret key in PEM format
-    let secret_key_serialized = secret_key
-        .to_pkcs8_pem(Default::default())
-        .unwrap()
-        .to_string();
+    //let (sk, pk) = (&sk.serialize(), &pk.serialize());
 
-    // Derive public key from secret key
-    let public_key = secret_key.public_key();
+    let sk_pem = Pem::new(
+        "PRIVATE KEY",
+        sk.serialize().to_vec()
+    );
 
-    // serializing public key in PEM format
-    let public_key_serialized = public_key.to_string();
+    let pk_pem = Pem::new(
+        "PUBLIC KEY", 
+        pk.serialize().to_vec()
+    );
 
-    // output the pair (pub key, secret key)
     (
-        public_key_serialized.as_bytes().to_vec(), 
-        secret_key_serialized.as_bytes().to_vec()
+        encode(&pk_pem).as_bytes().to_vec(),
+        encode(&sk_pem).as_bytes().to_vec()
     )
 }
 
 // outputs the signature as a byte array, given a message and a secret key
 // secret_key is PEM string (as a utf-8 byte array) output by generate_signing_key
 pub fn sign(message: &[u8], secret_key: &[u8]) -> Vec<u8> {
+    let sk_pem = parse(
+        String::from_utf8(
+            secret_key.to_vec()
+        ).unwrap()
+    ).unwrap();
 
-    // parse secret key from PEM format
-    let secret_key = String::from_utf8(secret_key.to_vec())
-        .unwrap()
-        .parse::<SecretKey>()
-        .unwrap();
+    let sk_bytes: [u8; 32] = sk_pem.contents().try_into().unwrap();
+    let sk = SecretKey::parse(&sk_bytes).unwrap();
 
-    // convert secret key to signing key
-    let signing_key: SigningKey = secret_key.into();
-
-    // let us sign
-    let signature: Signature = signing_key.sign(message);
-    signature.to_vec()
+    let msg = Message::parse(&hash_message_to_byte_array(message));
+    let (signature, _) = libsecp256k1::sign(&msg, &sk);
+    signature.serialize().to_vec()
 }
 
 // verifies a signature given a message, signature, and public key
 // public_key is PEM string (as a utf-8 byte array) output by generate_signing_key
 pub fn verify(message: &[u8], signature: &[u8], public_key: &[u8]) -> bool {
-    // Load public key
-    let public_key = String::from_utf8(public_key.to_vec())
-        .unwrap()
-        .parse::<PublicKey>()
-        .unwrap();
+    let pk_pem = parse(
+        String::from_utf8(
+            public_key.to_vec()
+        ).unwrap()
+    ).unwrap();
 
-    // convert public key to verifying key
-    let verifying_key: VerifyingKey = public_key.into();
-
-    // parse signature in byte array
-    let signature = Signature::try_from(&signature[..]).unwrap();
-
-    // output boolean indicating whether signature is valid
-    verifying_key.verify(message, &signature).is_ok()
+    let pk_bytes: [u8; 65] = pk_pem.contents().try_into().unwrap();
+    let pk = PublicKey::parse(&pk_bytes).unwrap();
+    let msg = Message::parse(&hash_message_to_byte_array(message));
+    let sig = Signature::parse_standard_slice(signature).unwrap();
+    libsecp256k1::verify(&msg, &sig, &pk)
 }
 
 #[cfg(test)]
