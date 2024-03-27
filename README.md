@@ -18,4 +18,4 @@ There is a caveat that during reconstruction, in some settings such as DeRec's u
 
 ## Secure Channel
 
-We use the OpenPGP sign-then-encrypt functionality for all communication between parties. The key sizes are as follows: 4096-bit RSA keys (with AES-256) for encryption, P256 ECDSA keys for signing. We recommend the use of [PGPainless](https://github.com/pgpainless/pgpainless) for the implementation (see [PGPainless-keygen](https://github.com/pgpainless/pgpainless#easily-generate-keys) and [PGPainless-sign-then-encrypt](https://github.com/pgpainless/pgpainless#encrypt-and-sign-data).
+We implement sign-then-encrypt, where encryption is performed using the ECIES algorithm, and signing is performed using the ECDSA algorithm. Both algorithms use the secp256k1 curve.
