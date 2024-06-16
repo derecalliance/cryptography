@@ -52,7 +52,7 @@ use derec_crypto::secure_channel::sign::*;
 // of a native method based on its name.
 
 #[no_mangle]
-pub extern "system" fn Java_src_DerecCryptoImpl_nativeShare<'local>(
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeShare<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_threshold: jint,
@@ -108,7 +108,7 @@ pub extern "system" fn Java_src_DerecCryptoImpl_nativeShare<'local>(
 
 
 #[no_mangle]
-pub extern "system" fn Java_src_DerecCryptoImpl_nativeRecover<'local>(
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeRecover<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_proto_msg: JByteArray<'local>,
@@ -146,7 +146,7 @@ pub extern "system" fn Java_src_DerecCryptoImpl_nativeRecover<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_src_DerecCryptoImpl_nativeEncKeyGen<'local>(
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeEncKeyGen<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
 ) -> JByteArray<'local> {
@@ -164,7 +164,7 @@ pub extern "system" fn Java_src_DerecCryptoImpl_nativeEncKeyGen<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_src_DerecCryptoImpl_nativeSignKeyGen<'local>(
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeSignKeyGen<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
 ) -> JByteArray<'local> {
@@ -194,7 +194,7 @@ pub extern "system" fn Java_src_DerecCryptoImpl_nativeSignKeyGen<'local>(
 // );
 
 #[no_mangle]
-pub extern "system" fn Java_src_DerecCryptoImpl_nativeSignThenEncrypt<'local>(
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeSignThenEncrypt<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_plaintext: JByteArray<'local>,
@@ -216,7 +216,7 @@ pub extern "system" fn Java_src_DerecCryptoImpl_nativeSignThenEncrypt<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_src_DerecCryptoImpl_nativeDecryptThenVerify<'local>(
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeDecryptThenVerify<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
     in_ciphertext: JByteArray<'local>,

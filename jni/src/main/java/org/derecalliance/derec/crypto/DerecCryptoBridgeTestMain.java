@@ -1,10 +1,10 @@
-package src;
+package org.derecalliance.derec.crypto;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import src.DerecCryptoInterface;
-import src.DerecCryptoImpl;
+import org.derecalliance.derec.crypto.DerecCryptoInterface;
+import org.derecalliance.derec.crypto.DerecCryptoImpl;
 
 public class DerecCryptoBridgeTestMain {
     public static void main(String[] args) {

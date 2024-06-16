@@ -1,4 +1,4 @@
-package src;
+package org.derecalliance.derec.crypto;
 
 import java.security.SecureRandom;
 import java.util.ArrayList;
