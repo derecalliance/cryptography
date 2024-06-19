@@ -11,17 +11,15 @@ apply plugin: 'java'
 apply plugin: "com.google.protobuf"
 apply plugin: 'idea'
 apply plugin: 'application'
-mainClassName = "src.DerecCryptoBridgeTestMain"
-//sourceSets.main.java.srcDirs = ['src']
+mainClassName = "org.derecalliance.derec.crypto.DerecCryptoBridgeTestMain"
+
 sourceSets {
   main {
     proto {
-        // In addition to the default 'src/main/proto'
         srcDir 'src/proto/bridge'
-        srcDir 'src/proto/protobufs'
     }
     java {
-        srcDirs 'src'
+        srcDirs 'src/main/java/org/derecalliance/derec/crypto'
         srcDirs 'build/generated/source/proto/main/java'
     }
   }
@@ -50,7 +48,9 @@ application {
     applicationDefaultJvmArgs = ["-Djava.library.path=derec_crypto_bridge_lib/target/debug"]
 }
 
-group 'src'
+jar { exclude '*.proto' }
+
+group 'src/main/java'
 version '1.0-SNAPSHOT'
 sourceCompatibility = '11'
 

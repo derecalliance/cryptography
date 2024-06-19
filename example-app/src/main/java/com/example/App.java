@@ -1,18 +1,22 @@
-package src;
+package com.example;
 
+import org.derecalliance.derec.crypto.DerecCryptoImpl;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import src.DerecCryptoInterface;
-import src.DerecCryptoImpl;
-
-public class DerecCryptoBridgeTestMain {
-    public static void main(String[] args) {
+/**
+ * Hello world!
+ *
+ */
+public class App 
+{
+    public static void main( String[] args )
+    {
         DerecCryptoImpl cryptoImpl = new DerecCryptoImpl();
 
         byte[] id = "some_id".getBytes();
         byte[] secret = "top_secret".getBytes();
-        
+
         List<byte[]> shares = cryptoImpl.share(id, 0, secret, 5, 3);
         byte[] recovered = cryptoImpl.recover(id, 0, shares);
 
@@ -35,6 +39,7 @@ public class DerecCryptoBridgeTestMain {
         sign_key = cryptoImpl.signatureKeyGen();
         byte[] bob_vk = (byte[]) sign_key[0];
         byte[] bob_sk = (byte[]) sign_key[1];
+
 
 
         byte[] ciphertext = cryptoImpl.signThenEncrypt(secret, alice_sk, bob_ek);
