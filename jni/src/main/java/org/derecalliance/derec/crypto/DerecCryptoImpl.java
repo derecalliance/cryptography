@@ -48,6 +48,12 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
 
     /**************** END RUST NATIVE METHODS DECLARATION ****************/
 
+    public static final byte RECOVERY_STATUS_OK = 0;
+    public static final byte RECOVERY_STATUS_INCONSISTENT_COMMITMENTS = 1;
+    public static final byte RECOVERY_STATUS_INCONSISTENT_CIPHERTEXTS = 2;
+    public static final byte RECOVERY_STATUS_INCONSISTENT_CORRUPT_SHARES = 3;
+    public static final byte RECOVERY_STATUS_INCONSISTENT_INSUFFICIENT_SHARES = 3;
+
     // all native methods are deterministic, and entropy is supplied by the app
     private SecureRandom entropySource;
 
@@ -90,6 +96,7 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
             return output;
 
         } catch(Exception e) {
+            System.out.println(e);
             return null; //TODO: do better error handling
         }
     }
@@ -105,8 +112,17 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
             msgBuilder.addAllShares(protoShares);
             DerecCryptoBridgeMessage msg = msgBuilder.build();
 
-            return nativeRecover(msg.toByteArray());
+            byte[] native_result = nativeRecover(msg.toByteArray());
+            byte status = native_result[0];
+            if (status == RECOVERY_STATUS_OK) {
+                byte[] secret = new byte[native_result.length - 1];
+                System.arraycopy(native_result, 1, secret, 0, secret.length);
+                return secret;
+            } else {
+                throw new Exception("Recovery error: " + status);
+            }
         } catch(Exception e) {
+            System.out.println(e);
             return null;
         }
     }

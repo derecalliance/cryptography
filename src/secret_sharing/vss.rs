@@ -18,6 +18,7 @@
 //! Implements functions for (verifiable) secret sharing.
 
 use anyhow::{Context, Result};
+use thiserror::Error;
 
 use rand_chacha::rand_core::SeedableRng;
 use rand::Rng;
@@ -104,44 +105,66 @@ pub fn share(
     output
 }
 
+#[derive(Error, Debug)]
+pub enum RecoveryError {
+    #[error("inconsistent ciphertexts")]
+    InconsistentCiphertexts,
+    #[error("inconsistent commitments")]
+    InconsistentCommitments,
+    #[error("one or more shares are corrupted")]
+    CorruptShares,
+    #[error("insufficient shares")]
+    InsufficientShares,
+}
+
 // reconstructs a secret from shares
-pub fn recover(shares: &Vec<VSSShare>) -> Option<Vec<u8>> {
+pub fn recover(shares: &Vec<VSSShare>) -> Result<Vec<u8>, RecoveryError> {
     assert!(shares.len() > 0);
-    let c = shares[0].encrypted_secret.clone();
 
-    let shamir_shares = shares
-        .iter()
-        .map(|s| (s.x.clone(), s.y.clone()))
-        .collect();
-
-    if !verify_shares(shares) {
-        None
-    } else {
+    let detected_error = detect_error(shares);
+    if detected_error.is_none() {
+        // no error detected so far, let's try shamir reconstruction
+        let shamir_shares = shares
+            .iter()
+            .map(|s| (s.x.clone(), s.y.clone()))
+            .collect();
         let k = shamir::recover(shamir_shares);
-        let msg = utils::decrypt_message(&c, &k);
-    
-        Some(msg)
+
+        // let's attempt to decrypt using the shamir-reconstruced key
+        let c = shares[0].encrypted_secret.clone();
+        let decryption_result = utils::decrypt_message(&c, &k);
+
+        if decryption_result.is_ok() {
+            return Ok(decryption_result.unwrap());
+        } else {
+            // the only recourse here is to collect more shares
+            return Err(RecoveryError::InsufficientShares);
+        }
+    } else {
+        // some error was detected prior to attempting decryption
+        return Err(detected_error.unwrap());
     }
 }
 
-// this function check that all shares have the same 
-// commitment (and same encrypted_secret),
-// and validate with respect to that commitment
-pub fn verify_shares(shares: &Vec<VSSShare>) -> bool {
-
+// this function will be used to detect one of several possible errors:
+// 1. inconsistent ciphertexts; 2. inconsistent commitments; 3. corrupted shares
+pub fn detect_error(shares: &Vec<VSSShare>) -> Option<RecoveryError>
+{
+    // let's grab the ciphertext and commitment from some share
+    // and check that all other shares have the same values
     let commitment = &shares[0].commitment;
     let encrypted_secret = &shares[0].encrypted_secret;
 
     for share in shares {
-        // first check if this share has the same committment 
-        // or ciphertext as all other shares
-        if &share.commitment != commitment ||
-            &share.encrypted_secret != encrypted_secret {
-                return false;
+        if &share.commitment != commitment {
+            return Some(RecoveryError::InconsistentCommitments);
+        }
+
+        if &share.encrypted_secret != encrypted_secret {
+            return Some(RecoveryError::InconsistentCiphertexts);
         }
 
         // now verify the Merkle path
-
         // first compute hash of this share
         let mut on_path_hash = leaf_hash((&share.x, &share.y));
 
@@ -156,11 +179,12 @@ pub fn verify_shares(shares: &Vec<VSSShare>) -> bool {
         
         //on_path_hash should equal the merkle root
         if &on_path_hash != commitment {
-            return false;
+            return Some(RecoveryError::CorruptShares);
         }
     }
 
-    true
+    // none indicates no error detected
+    None
 }
 
 // builds a 2-ary merkle tree over shares
