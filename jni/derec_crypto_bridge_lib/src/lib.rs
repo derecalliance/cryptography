@@ -45,6 +45,14 @@ use derec_crypto::secret_sharing::vss::*;
 use derec_crypto::secure_channel::{decrypt_then_verify, encrypt::*, sign_then_encrypt};
 use derec_crypto::secure_channel::sign::*;
 
+/// error codes for recovery procedure
+enum RecoveryStatus {
+    Ok = 0,
+    InconsistentCommitments = 1,
+    InconsistentCiphertexts = 2,
+    CorruptShares = 3,
+    InsufficientShares = 4,
+}
 
 // This `#[no_mangle]` keeps rust from "mangling" the name and making it unique
 // for this crate. The name follow a strict naming convention so that the
@@ -138,11 +146,26 @@ pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativ
         );
     }
 
-    let recovered = recover(&vss_shares).unwrap();
-
-    // Then we have to create a new java byte[] to return.
-    let output = env.byte_array_from_slice(&recovered).unwrap();
-    output
+    match recover(&vss_shares)
+    {
+        Ok(recovered) => {
+            let mut output: Vec<u8> = vec![0u8; recovered.len() + 1];
+            output[0] = RecoveryStatus::Ok as u8;
+            output[1..].copy_from_slice(&recovered[..]);
+            // Then we have to create a new java byte[] to return.
+            return env.byte_array_from_slice(&output).unwrap();
+        },
+        Err(e) => {
+            let mut output: Vec<u8> = vec![0u8; 1];
+            output[0] = match e {
+                RecoveryError::InconsistentCommitments => RecoveryStatus::InconsistentCommitments as u8,
+                RecoveryError::InconsistentCiphertexts => RecoveryStatus::InconsistentCiphertexts as u8,
+                RecoveryError::CorruptShares => RecoveryStatus::CorruptShares as u8,
+                RecoveryError::InsufficientShares => RecoveryStatus::InsufficientShares as u8,
+            };
+            return env.byte_array_from_slice(&output).unwrap();
+        }
+    }
 }
 
 #[no_mangle]
@@ -180,18 +203,6 @@ pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativ
     // Then we have to create a new java byte[] to return.
     env.byte_array_from_slice(&out_bytes).unwrap()
 }
-
-// public native byte[] nativeSignThenEncrypt(
-//     byte[] plaintext, // arbitrary length plaintext
-//     byte[] sign_privkey, // private key for signing
-//     byte[] enc_pubkey // public key for encryption
-// );
-
-// public native byte[] nativeDecryptThenVerify(
-//     byte[] ciphertext, // arbitrary length ciphertext
-//     byte[] sign_verifkey, // public key for verification
-//     byte[] enc_privkey // private key for decryption
-// );
 
 #[no_mangle]
 pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeSignThenEncrypt<'local>(

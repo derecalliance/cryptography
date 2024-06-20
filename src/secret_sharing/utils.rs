@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+ use aead::Result;
 use aes_gcm::{aead::Aead, Aes128Gcm, Nonce, Key};
 use aes::cipher::{
     typenum::*,
@@ -37,12 +38,12 @@ pub fn encrypt_message(msg: &[u8], key: &[u8; λ]) -> Vec<u8> {
     cipher.encrypt(&nonce, msg).unwrap()
 }
 
-pub fn decrypt_message(ctxt: &[u8], key: &[u8; λ]) -> Vec<u8> {
+pub fn decrypt_message(ctxt: &[u8], key: &[u8; λ]) -> Result<Vec<u8>> {
     let key: &Key<Aes128Gcm> = key.into();
     let cipher = Aes128Gcm::new(&key);
     let nonce = Nonce::<U12>::default();
 
-    cipher.decrypt(&nonce, ctxt).unwrap()
+    cipher.decrypt(&nonce, ctxt)
 }
 
 //produces 4λ bits, where λ = 128
