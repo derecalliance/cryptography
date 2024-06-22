@@ -227,6 +227,44 @@ pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativ
 }
 
 #[no_mangle]
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeSign<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+    in_plaintext: JByteArray<'local>,
+    in_sign_privkey: JByteArray<'local>,
+) -> JByteArray<'local> {
+
+    let plaintext = env.convert_byte_array(&in_plaintext).unwrap();
+    let sign_privkey = env.convert_byte_array(&in_sign_privkey).unwrap();
+
+    let signed = sign(
+        &plaintext,
+        &sign_privkey,
+    );
+
+    env.byte_array_from_slice(&signed).unwrap()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeEncrypt<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+    in_plaintext: JByteArray<'local>,
+    in_enc_pubkey: JByteArray<'local>,
+) -> JByteArray<'local> {
+
+    let plaintext = env.convert_byte_array(&in_plaintext).unwrap();
+    let enc_pubkey = env.convert_byte_array(&in_enc_pubkey).unwrap();
+
+    let ciphertext = encrypt(
+        &plaintext,
+        &enc_pubkey
+    );
+
+    env.byte_array_from_slice(&ciphertext).unwrap()
+}
+
+#[no_mangle]
 pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeDecryptThenVerify<'local>(
     env: JNIEnv<'local>,
     _class: JClass,
@@ -246,4 +284,48 @@ pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativ
     ).unwrap();
 
     env.byte_array_from_slice(&plaintext).unwrap()
+}
+
+
+#[no_mangle]
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeDecrypt<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+    in_ciphertext: JByteArray<'local>,
+    in_enc_privkey: JByteArray<'local>,
+) -> JByteArray<'local> {
+
+    let ciphertext = env.convert_byte_array(&in_ciphertext).unwrap();
+    let enc_privkey = env.convert_byte_array(&in_enc_privkey).unwrap();
+
+    let plaintext = decrypt(
+        &ciphertext,
+        &enc_privkey
+    );
+
+    env.byte_array_from_slice(&plaintext).unwrap()
+}
+
+
+#[no_mangle]
+pub extern "system" fn Java_org_derecalliance_derec_crypto_DerecCryptoImpl_nativeVerify<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass,
+    in_message: JByteArray<'local>,
+    in_signature: JByteArray<'local>,
+    in_sign_verifkey: JByteArray<'local>,
+) -> JByteArray<'local> {
+
+    let message = env.convert_byte_array(&in_message).unwrap();
+    let signature = env.convert_byte_array(&in_signature).unwrap();
+    let sign_verifkey = env.convert_byte_array(&in_sign_verifkey).unwrap();
+
+    let result = verify(
+        &message,
+        &signature,
+        &sign_verifkey,
+    );
+    let output: [u8; 1] = [result as u8];
+
+    env.byte_array_from_slice(&output).unwrap()
 }

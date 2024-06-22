@@ -10,15 +10,15 @@ public class DerecCryptoBridgeTestMain {
     public static void main(String[] args) {
         DerecCryptoImpl cryptoImpl = new DerecCryptoImpl();
 
-        byte[] id = "some_id".getBytes();
-        byte[] secret = "top_secret".getBytes();
+        String expected_value = "top_secret";
+        byte[] id = expected_value.getBytes();
+        byte[] secret = expected_value.getBytes();
         
         List<byte[]> shares = cryptoImpl.share(id, 0, secret, 5, 3);
         byte[] recovered = cryptoImpl.recover(id, 0, shares);
 
         String recovered_value = new String(recovered, StandardCharsets.UTF_8);
-        assert(recovered_value.equals("top_secret"));
-        System.out.println(recovered_value);
+        assert(recovered_value.equals(expected_value));
 
         Object[] enc_key = cryptoImpl.encryptionKeyGen();
         byte[] alice_ek = (byte[]) enc_key[0];
@@ -40,7 +40,17 @@ public class DerecCryptoBridgeTestMain {
         byte[] ciphertext = cryptoImpl.signThenEncrypt(secret, alice_sk, bob_ek);
         byte[] plaintext = cryptoImpl.decryptThenVerify(ciphertext, alice_vk, bob_dk);
         recovered_value = new String(recovered, StandardCharsets.UTF_8);
-        assert(recovered_value.equals("top_secret"));
+        assert(recovered_value.equals(expected_value));
+
+        ciphertext = cryptoImpl.encrypt(secret, bob_ek);
+        plaintext = cryptoImpl.decrypt(ciphertext, bob_dk);
+        recovered_value = new String(recovered, StandardCharsets.UTF_8);
+        assert(recovered_value.equals(expected_value));
+
+        byte[] signature = cryptoImpl.sign(secret, alice_sk);
+        boolean valid = cryptoImpl.verify(secret, signature, alice_vk)[0] == 1;
+        assert(valid);
+
         System.out.println(recovered_value);
     }
 }
