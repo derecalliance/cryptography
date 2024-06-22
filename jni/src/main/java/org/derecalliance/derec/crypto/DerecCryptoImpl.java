@@ -46,6 +46,27 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
         byte[] enc_privkey // private key for decryption
     );
 
+    public native byte[] nativeDecrypt(
+            byte[] ciphertext, // arbitrary length ciphertext
+            byte[] enc_privkey // private key for decryption
+    );
+
+    public native byte[] nativeVerify(
+            byte[] message, // arbitrary length message
+            byte[] signature, // bytes encoding the signature
+            byte[] sign_verifkey // public key for verification
+    );
+
+    public native byte[] nativeSign(
+            byte[] message, // arbitrary length plaintext
+            byte[] sign_privkey  // private key for signing
+    );
+
+    public native byte[] nativeEncrypt(
+            byte[] message, // arbitrary length plaintext
+            byte[] enc_pubkey // public key for encryption
+    );
+
     /**************** END RUST NATIVE METHODS DECLARATION ****************/
 
     public static final byte RECOVERY_STATUS_OK = 0;
@@ -165,7 +186,23 @@ public class DerecCryptoImpl implements DerecCryptoInterface {
         return nativeSignThenEncrypt(message, signPrivKey, encPubKey);
     }
 
+    public byte[] sign(byte[] message, byte[] signPrivKey) {
+        return nativeSign(message, signPrivKey);
+    }
+
+    public byte[] encrypt(byte[] message, byte[] encPubKey) {
+        return nativeEncrypt(message, encPubKey);
+    }
+
     public byte[] decryptThenVerify(byte[] ciphertext, byte[] verifPubKey, byte[] decPrivKey) {
         return nativeDecryptThenVerify(ciphertext, verifPubKey, decPrivKey);
+    }
+
+    public byte[] decrypt(byte[] ciphertext, byte[] decPrivKey) {
+        return nativeDecrypt(ciphertext, decPrivKey);
+    }
+
+    public byte[] verify(byte[] message, byte[] signature, byte[] verifPubKey) {
+        return nativeVerify(message, signature, verifPubKey);
     }
 }
