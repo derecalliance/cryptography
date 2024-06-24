@@ -11,6 +11,7 @@ apply plugin: 'java'
 apply plugin: "com.google.protobuf"
 apply plugin: 'idea'
 apply plugin: 'application'
+apply plugin: 'maven-publish'
 mainClassName = "org.derecalliance.derec.crypto.DerecCryptoBridgeTestMain"
 
 sourceSets {
@@ -63,4 +64,19 @@ dependencies {
 
     implementation 'com.google.protobuf:protobuf-gradle-plugin:0.9.4'
     testImplementation group: 'junit', name: 'junit', version: '4.12'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            groupId = 'src'
+            artifactId = 'derec-crypto-bridge'
+            version = '1.0-SNAPSHOT'
+        }
+    }
+
+    repositories {
+        mavenLocal()
+    }
 }
