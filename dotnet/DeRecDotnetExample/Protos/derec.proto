@@ -1,0 +1,711 @@
+﻿/*
+ * Copyright (c) DeRec Alliance and its Contributors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+package derec.protobuf;
+import "google/protobuf/timestamp.proto";
+
+/*
+ * A DeRec share that is committed and ready to be given to a helper to store.
+ * During recovery, this protobuf message is returned.
+ * The commitment involves a Merkle tree.  The hash of the share given to
+ * each helper is one leaf in the tree.  Each leaf hash and internal hash
+ * is a SHA-384 hash. The Merkle path from a leaf to the root (which is the
+ * siblings of all nodes along that route) is called merklePath.
+ * The root hash is called a "commitment".
+ */
+message CommittedDeRecShare {
+  /*
+   * Protobuf serialization of DeRecShare.
+   */
+  bytes deRecShare = 1;
+
+  /** The Merkle root */
+  bytes commitment = 2;
+
+  /* one leaf or interior node. isLeft is true if it's a left child */
+  message SiblingHash {
+    bool isLeft = 1;
+    bytes hash = 2;
+  }
+
+  /* The bottom-up Merkle path */
+  repeated SiblingHash merklePath = 3;
+}
+
+
+/*
+ * The information to share with a helper.
+ * The sharer first generates a random AES-256 key k, and uses that
+ * to AES-GCM encrypt the secret. A random polynomial f is generated
+ * such that f(0)=k, and is evaluated at a random x value for the
+ * intended helper.  The share contains y, where f(x) = y.
+ * This should be done in GF(p), where p is the smallest 256-bit prime.
+ * The order of the polynomial is the threshold for how many helpers are needed
+ * to recover it.
+ * This also includes the secretId and share version number, because they
+ * should be serialized along with this, in order for them all to be signed
+ * together.
+ */
+message DeRecShare {
+  /*
+   * The result of taking the secret to be shared, serializing it,
+   * then encrypting it with a random AES-256 key.
+   */
+  bytes encryptedSecret = 1;
+
+  /*
+   * This is a random 256-bit integer, 2's complement, big endian.
+   */
+  bytes x = 2;
+
+  /*
+   * This is f(x)
+   */
+  bytes y = 3;
+
+  /*
+   * Secret ID (any length from 1 to 16 bytes) for the requested share
+   * Must be unique for each secret created by a sharer.
+   */
+  bytes secretId = 4;
+
+  /*
+   * version number for the share;
+   * note that helper is entitled to ignore any
+   * StoreShareRequestMessage with a version less
+   * than or equal to the last seen version
+   */
+  int32 version = 5;
+}
+
+message CommunicationInfoKeyValue {
+  string key = 1;
+  oneof value {
+    string stringValue = 2;
+    bytes bytesValue = 3;
+  }
+}
+
+/**
+* This is used to give a list of key-value pairs that an
+* app can display to a user. It can include things like
+* name, address, phone number, etc.
+*/
+message CommunicationInfo {
+  repeated CommunicationInfoKeyValue communicationInfoEntries = 1;
+}
+
+
+/*
+ * Every message in the protocol (other than ContactMessage) consists
+ * of sending this protobuf message.
+ *
+ * This protobuf message is protobuf serialized to a binary byte array, then
+ * signed with the sender's private signature key, then encrypted with the
+ * receiver's public encryption key.  The OpenPGP format is used for the
+ * signed-then-encrypted message. The sender then sends the concatenation of 
+ * the keyID of the recipient, followed by the signed-then-encrypted message. 
+ * The keyID is a 32-bit signed integer (big endian), used to identify which
+ * encryption key the recipient should use to decrypt the message.
+ * 
+ * This message will usually contain only a single DeRecMessage. If it contains
+ * more, then it is equivalent to sending them individually, in the
+ * given order.
+ *
+ * This can contain multiple individual requests or responses, and they will be
+ * guaranteed to arrive in order and together, to allow atomic execution of
+ * several requests at once, such updating a version, then immediately asking
+ * for a listing of all known versions.
+ */
+message DeRecMessage {
+  /*
+   * DeRec protocol version number
+   */
+  int32 protocolVersionMajor = 1;
+  int32 protocolVersionMinor = 2;
+
+  /*
+   * SHA-384 hash of sender public key (used to identify the sender and key)
+   */
+  bytes sender = 3;
+
+  /*
+   * SHA-384 hash of receiver's public key
+   * (used to prevent signature-replacement attacks)
+   */
+  bytes receiver = 4;
+
+  /*
+   * Secret ID (any length from 1 to 16 bytes)
+   * Must be unique for each secret created by a sharer.
+   */
+  bytes secretId = 5;
+
+  /*
+   * UTC timestamp for when the sender created this message
+   */
+  google.protobuf.Timestamp timestamp = 6;
+
+  /*
+   * message body is one of several possible DeRec messages
+   */
+  MessageBodies messageBodies = 7;
+
+  message MessageBodies {
+    oneof messages {
+      HelperMessageBodies helperMessageBodies = 1;
+      SharerMessageBodies sharerMessageBodies = 2;
+    }
+  }
+
+  /**
+   * message body is one of several possible DeRec messages from a sharer
+   */
+  message SharerMessageBodies {
+    repeated SharerMessageBody sharerMessageBody= 1;
+  }
+
+  message SharerMessageBody {
+    oneof body {
+      PairRequestMessage pairRequestMessage = 1;
+      UnpairRequestMessage unpairRequestMessage = 2;
+      StoreShareRequestMessage storeShareRequestMessage = 3;
+      VerifyShareRequestMessage verifyShareRequestMessage = 4;
+      GetSecretIdsVersionsRequestMessage getSecretIdsVersionsRequestMessage = 5;
+      GetShareRequestMessage getShareRequestMessage = 6;
+    }
+  }
+  message HelperMessageBodies {
+    repeated HelperMessageBody helperMessageBody= 1;
+  }
+
+  message HelperMessageBody {
+    oneof body {
+      PairResponseMessage pairResponseMessage = 1;
+      UnpairResponseMessage unpairResponseMessage = 2;
+      StoreShareResponseMessage storeShareResponseMessage = 3;
+      VerifyShareResponseMessage verifyShareResponseMessage = 4;
+      GetSecretIdsVersionsResponseMessage getSecretIdsVersionsResponseMessage = 5;
+      GetShareResponseMessage getShareResponseMessage = 6;
+      ErrorResponseMessage errorResponseMessage = 7;
+    }
+  }
+}
+
+
+/**
+* ----------------------------------------------------------------------------
+* This is the sole message that is not a DeRecMessage. It is not encrypted,
+* not signed, and not sent through the usual communication channels. It 
+* might be in a QR code, presented by either the helper or sharer, and scanned
+* by the other party.  Or it might be in an app that is provided by one party
+* and used by another party.  Or it might be sent through an existing channel
+* if the two parties already have some other relationship before they start
+* the DeRec protocol. The nonce might be sent separately from the rest of it.
+* ----------------------------------------------------------------------------
+*/
+message ContactMessage {
+ /**
+  * public key in PEM encoding format
+  */
+ string publicEncryptionKey = 1;
+ 
+/**
+  * A number used to later identify the publicEncryptionKey. 
+  * When a message is sent to the creator of this contact, and it is encrypted
+  * with the publicEncryptionKey, this identifier is also sent, so the recipient 
+  * knows which key to use to decrypt it. If the recipient creates multiple 
+  * keys for multiple pairings, then they should remember the publicKeyId that
+  * they chose for each one, so they won't have to try all the keys during decryption. 
+  */
+ int32 publicKeyId = 2;
+
+ /**
+  * 64-bit (random) nonce to identify the pairing session. 
+  * This should be given to a party after authenticating.
+  */
+ int64 nonce = 3;
+
+ /**
+  * URI endpoint for contacting the helper/sharer
+  * This can be an https endpoint or a rabbitMQ endpoint
+  */
+ string transportUri = 4;
+
+  /**
+   * Message encoding mechanism
+   */
+  MessageEncodingEnum messageEncodingType = 5;
+
+  enum MessageEncodingEnum {
+   Protobuf = 0;
+  }
+}
+
+
+/*
+ * This is the sharer's data to be encrypted and stored with the helpers.
+ * It includes both secret data and various pieces of secret metadata.
+ *
+ * This is the standard format for use with "algorithm 0" for creating shares.
+ */
+message DeRecSecret {
+  /*
+   * Any data that the sharer wants to keep secret, such as keys and
+   * passwords, and documents. This is the serialized secret data.
+   */
+  bytes secretData = 1;
+
+  /* The private encryption key used by the sharer, in PEM encoding.*/
+  string privateEncryptionKey = 2;
+
+  /* The private signature key used by the sharer, in PEM encoding. */
+  string privateSignatureKey = 3;
+
+  /* The time and date when the sharer created the shares of this secret. */
+  google.protobuf.Timestamp creationTime = 4;
+
+  /* Threshold for # of helpers for recovery */
+  int64 helperThresholdForRecovery = 5;
+
+  /* Threshold for # of helpers confirming receipt of a share,
+   * to delete the old one
+   */
+  int64 helperThresholdForConfirmingShareReceipt = 6;
+
+  repeated HelperSpecificInfo helpers = 7;
+
+  message HelperSpecificInfo {
+    /*
+     * SHA-384 hash of helper's public encryption key
+     */
+    bytes helper = 1;
+
+    /*
+     * agreed upon parameters between helper and sharer
+     */
+    ParameterRange helperParams = 2;
+  }
+}
+
+
+message ParameterRange {
+  /**
+   * Min/Max number of bytes willing to store at any given time
+   */
+  int64 minShareSize = 1;
+  int64 maxShareSize = 2;
+
+  /**
+   * Min/Max time between verifications that will be accepted
+   */
+  int64 minTimeBetweenVerifications = 3;
+  int64 maxTimeBetweenVerifications = 4;
+
+  /**
+   * Min/Max time between accepting new shares
+   */
+  int64 minTimeBetweenShareUpdates = 5;
+  int64 maxTimeBetweenShareUpdates = 6;
+
+  /**
+   * Min/Max timeout period in seconds for unpairing with the other party and
+   * deleting all the data
+   */
+  int64 minUnresponsiveDeletionTimeout = 7;
+  int64 maxUnresponsiveDeletionTimeout = 8;
+
+  /**
+   * Min/Max timeout period in seconds for treating the other party as inactive
+   */
+  int64 minUnresponsiveDeactivationTimeout = 9;
+  int64 maxUnresponsiveDeactivationTimeout = 10;
+}
+
+/* 
+ * Protocol message sent by a message receiver who receives a bad message back to the message sender.
+ */
+message ErrorResponseMessage {
+    Result result = 1;
+}
+
+
+/* Request a given share that is stored by the helper. */
+message GetShareRequestMessage {
+  /*
+   * Secret ID (any length from 1 to 16 bytes) for the requested share
+   * Must be unique for each secret created by a sharer
+   */
+  bytes secretId = 1;
+
+  /* the share version for the requested share */
+  int32 shareVersion = 2;
+}
+
+/*
+  * Response giving the requested share to the sharer.
+  * The request is only processed if it comes through the communication channel
+  * that is either for the same secret ID that is being requested, or through
+  * a secret ID that was created in recovery mode.
+  */
+message GetShareResponseMessage {
+  /* the success or failure of processing the request */
+  Result result = 1;
+
+  /* the committed deRec share */
+  bytes committedDeRecShare = 2;
+
+  /* the share algorithm */
+  int32 shareAlgorithm = 3;
+}
+
+
+/*
+ * Is the sender of this message (i.e., the responder) a
+ * helper, or a sharer that is not in recovery mode, or a sharer that is
+ * in recovery mode?
+ */
+enum SenderKind {
+  SHARER_NON_RECOVERY = 0;
+  SHARER_RECOVERY = 1;
+  HELPER = 2;
+}
+
+/*
+* ----------------------------------------------------------------------------
+* Pairing protocol
+* First message sent from the pairing initiator to the pairing
+* responder. There would earlier have been communication of the information
+* in a ContactMessage that was sent from the responder to the initiator by some
+* other means. For example, the responder could display a QR code that the
+* initiator scanned.
+* The initiator can be helper or sharer, and
+* the responder can be sharer or helper.
+* ----------------------------------------------------------------------------
+*/
+message PairRequestMessage {
+  /*
+   * The kind of the sender of this message (i.e., the responder)
+   */
+  SenderKind senderKind = 1;
+
+  /*
+   * public key (PEM encoded - RFC 7468) used for signing messages from the initiator
+   */
+  string publicSignatureKey = 3;
+
+  /*
+   * public key (PEM encoded - RFC 7468) used for encrypting messages to the initiator
+   */
+  string publicEncryptionKey = 4;
+
+/**
+  * A number used to later identify the publicEncryptionKey. 
+  * When any message is later sent to this initiator, and it is encrypted
+  * with the publicEncryptionKey, this identifier is also sent, so the recipient 
+  * knows which key to use to decrypt it. If the recipient creates multiple 
+  * keys for multiple pairings, then they should remember the publicKeyId that
+  * they chose for each one, so they won't have to try all the keys during decryption. 
+  */
+ int32 publicKeyId = 5;
+
+  /*
+   * sender’s app-readable contact information,
+   * such as name, phone number, etc.
+   */
+  CommunicationInfo communicationInfo = 6;
+
+  /*
+   * 64-bit (random) nonce to identify the pairing session
+   */
+  int64 nonce = 7;
+
+  /*
+   * The parameter range for the sender.
+   */
+  ParameterRange parameterRange = 8;
+}
+
+/*
+ * Response, which is identical to the request, except without the
+ * public encryption key, because it already happened during contact.
+ */
+message PairResponseMessage {
+  /** the success or failure of processing the request */
+  Result result = 1;
+
+
+  /*
+   * The kind of the sender of this message (i.e., the responder)
+   */
+  SenderKind senderKind = 2;
+
+  /*
+   * public signature key (PEM encoded) of the responder
+   */
+  string publicSignatureKey = 3;
+
+  /*
+   * app-readable contact information (e.g. name, phone number, etc.)
+   */
+  CommunicationInfo communicationInfo = 4;
+
+  /*
+   * 64-bit (random) nonce to identify the pairing session;
+   * this is the same value as sent in the pairing request
+   */
+  int64 nonce = 5;
+
+  /*
+   * The parameter range for the sender.
+   */
+  ParameterRange parameterRange = 6;
+}
+
+
+/*
+ * Result of success or failure for processing the request messages
+ */
+message Result {
+  StatusEnum status = 1;
+  string memo = 2;
+}
+
+/*
+ * The success or failure of processing a request,
+ * used in DeRec Response messages
+ */
+enum StatusEnum {
+  /* The request was successfully handled. */
+  OK = 0;
+
+  /*
+   * The request was partially fulfilled. The memo will give more details.
+   */
+  PARTIAL = 1;
+
+  /*
+   * The request fails for some reason other than one of the specific
+   * reasons below.
+   */
+  FAIL = 2;
+
+  /*
+   * This request fails because it would cause the helper to be storing
+   * more bytes for this sharer than the agreed limit for this secret ID.
+   */
+  SIZE_LIMIT_EXCEEDED = 3;
+
+  /* the request is being ignored because it is too frequent (it was
+   * sent too soon after the last request of that type, according to
+   * the agreed limit on the frequency.
+   */
+  TOO_FREQUENT = 4;
+
+  /* This secret ID is not stored by this helper. */
+  UNKNOWN_SECRET_ID = 5;
+
+  /* This share version for this secret ID not stored by this helper. */
+  UNKNOWN_SHARE_VERSION = 6;
+
+  /* The received message could not be decrypted successfully. */
+  DECRYPTION_FAILED = 7;
+
+  /* Signature could not be verified */
+  VERIFICATION_FAILED = 8;
+
+  /* Format error - includes errors like protobuf parsing failure or invalid message formatting. */
+  FORMAT_ERROR = 9;
+
+  /* the helper is asking the sharer to send an unpair request */
+  REQUEST_TO_CLOSE = 99;
+}
+
+/*
+ * Request for all secret IDs held by the helper for this sharer, and all
+ * share versions for each of them. This is used during recovery.
+ */
+message GetSecretIdsVersionsRequestMessage {
+}
+
+
+/*
+  * Response to the sharer, giving all their secret IDs, and the list of
+  * share versions stored by the helper for each of those secret IDs.
+  * This is used during recovery. It will require the helper to have
+  * authenticated this sharer in such a way that they can identify which
+  * secrets they are holding for this sharer.  This could be based on
+  * biometrics, or out-of-band credentials, or simply a human helper looking
+  * at a list and identifying which individuals in that list correspond to
+  * the sharer who is physically meeting them.
+  *
+  * This request will only be processed successfully when it is sent through
+  * the communication channel of a secretID that was created during recovery
+  * mode.
+  */
+message GetSecretIdsVersionsResponseMessage {
+  /* the success or failure of processing the request */
+  Result result = 1;
+  /*
+    * A list of secretLists, with one secretList for each secret ID stored
+    * by this helper for this sharer.
+    */
+  repeated VersionList secretList = 2;
+
+  /*
+   * A list of version numbers stored by this helper for this sharer,
+   * for the given secretId.
+   */
+  message VersionList {
+    bytes secretId = 1;
+    repeated int32 versions = 2;
+  }
+}
+
+
+/*
+ * Request that the given share be stored, and that all versions outside
+ * the given keepList be removed from use.
+ *
+ * If the share field is not absent, then the helper is
+ * requested to store this version of the share. If the helper already has
+ * this version of the share, then it is a request to replace it. It is
+ * an error on the part of the sharer if the two shares with the same version
+ * number and secret ID are actually different.
+ *
+ * If the keepList field is present in this message, then it is a request
+ * to update that list, and to delete any version not on that list. If the
+ * keepList is absent, then the helper should continue to use the existing
+ * keepList, except this new received share should be added to the list.
+ * The keepList should be ignored if the version is not equal to or greater
+ * than the latest version that has been stored (to prevent replay attacks 
+ * from deleting newer shares).
+ */
+message StoreShareRequestMessage {
+  /*
+   * The bytes that the sharer is requesting that the helper stores. A helper does not need to know the details of 
+   * the algorithm used to construct the share and MUST treat the share as an opaque byte string.
+   */
+   bytes share = 1;
+
+  /*
+   * An identifier for the algorithm used to create the share bytes (field 1). For interoperability purposes there 
+   * may be a registry of ids and corresponding protobuf definitions of the contents of the share, if it is desired that 
+   * different sharer implementations are able to reconstruct secrets that have been shared by other implementations.
+   *
+   * Share algorithm number 0 is the creation of the `share` bytes by serializing the
+   * protobuf message `CommittedDeRecShare`, which is detailed in the DeRecAlliance Repo 'cryptography'.
+   *
+   * It is recommended that implementations support at least this
+   * algorithm, to aid in interoperability if a secret is created on one app and recovered using another app.
+   */
+   int32 shareAlgorithm = 2;
+
+  /*
+   * The version number of the share (the secretId is given in the containing DeRecMessage)
+   */
+   int32 version = 3;
+
+  /*
+  * All versions that the helper must retain (including this new one).
+  * The helper should delete all other versions outside this list.
+  */
+  repeated int32 keepList = 4;
+
+  /*
+   * A description of the version. This is not encrypted, so it can
+   * be read by the helper. The sharer should either leave this
+   * empty, or give a description that they want the helper to know.
+   */
+  string versionDescription = 5;
+}
+
+
+message StoreShareResponseMessage {
+  Result result = 1;
+  /*
+   * version number from the share message
+   */
+  int32 version = 2;
+}
+
+
+/*
+ * ----------------------------------------------------------------------------
+ * Remove pairing. This is a request that the other party ceases to be a
+ * helper, and deletes any information about the sharer and the relationship,
+ * other than information that must be retained according to regulations or
+ * service agreements etc.
+ * ----------------------------------------------------------------------------
+ */
+message UnpairRequestMessage {
+  /*
+   * A human-readable reason for why the unpairing happened.
+   */
+  string memo = 1;
+}
+
+/*
+ * ----------------------------------------------------------------------------
+ * Response to the unpairing request.
+ * ----------------------------------------------------------------------------
+ */
+message UnpairResponseMessage {
+  Result result = 1;
+}
+
+/*
+* ----------------------------------------------------------------------------
+* The sharer is asking the helper whether they have a particular version of
+* the share, which they will have to cryptographically prove.
+* ----------------------------------------------------------------------------
+*/
+message VerifyShareRequestMessage {
+  /*
+   * which share version is being verified?
+   */
+  int32 version = 1;
+
+  /*
+   * 256-bit nonce that serves as the challenge.
+   * This is randomly chosen for each request.
+   */
+  bytes nonce = 2;
+}
+
+/* response in the challenge-response proof that the stored share is correct */
+message VerifyShareResponseMessage {
+  /* the success or failure of processing the request */
+  Result result = 1;
+
+  /*
+   * which version is the response for?
+   */
+  int32 version = 2;
+
+  /**
+    * 256-bit nonce that was used in the challenge
+    */
+  bytes nonce = 3;
+
+  /**
+   * response: sha384 hash of concatenation of the following:
+   * (committedDeRecShare, nonce)
+   */
+  bytes hash = 4;
+}
