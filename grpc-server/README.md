@@ -15,7 +15,7 @@ cargo run
 ### Run from docker
 
 ```
-docker run -p 50051:50051 scholtz2/derec-cyrpto-core-grpc
+docker run -p 50051:50051 scholtz2/derec-crypto-core-grpc
 ```
 
 ## Example
