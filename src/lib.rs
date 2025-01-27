@@ -17,3 +17,4 @@
 
 pub mod secret_sharing;
 pub mod secure_channel;
+pub mod pairing;
