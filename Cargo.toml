@@ -39,3 +39,4 @@ ecies = {version = "*", features = ["std"]}
 libsecp256k1 = "*"
 ml-kem = "*"
 rand_core = "0.6.4"
+ark-secp256k1 = "*"
