@@ -39,3 +39,23 @@ pub fn decrypt_message(ctxt: &[u8], key: &[u8; DEREC_CHANNEL_KEY_LENGTH]) -> Res
 
     cipher.decrypt(&nonce, ctxt)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_encrypt() {
+
+        let msg = b"hello from alice";
+        let key = [0u8; DEREC_CHANNEL_KEY_LENGTH];
+
+        // let alice sign-then-encrypt the message for bob
+        let ctxt = super::encrypt_message(msg, &key);
+
+        // let bob decrypt-then-verify the message from alice
+        let received = super::decrypt_message(&ctxt, &key);
+
+        assert_eq!(received.unwrap(), msg);
+    }
+}
