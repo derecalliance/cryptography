@@ -26,18 +26,18 @@ pub fn generate_encapsulation_key<R: CryptoRngCore>(rng: &mut R) -> (Vec<u8>, Ve
 }
 
 /// outputs encoded ciphertext and encoded shared secret
-pub fn encapsulate<R: CryptoRngCore>(ek_encoded: impl AsRef<[u8]>, rng: &mut R) -> (Vec<u8>, Vec<u8>) {
+pub fn encapsulate<R: CryptoRngCore>(ek_encoded: impl AsRef<[u8]>, rng: &mut R) -> (Vec<u8>, SharedSecret) {
     let ek = MlKem768EncapsulationKey::from_bytes(
         &as_array::<ENCAPSULATION_KEY_SIZE>(ek_encoded).unwrap().into()
     );
 
     let (ct, k_send) = ek.encapsulate(rng).unwrap();
 
-    (ct.0.to_vec(), k_send.0.to_vec())
+    (ct.0.to_vec(), k_send.0)
 }
 
 /// outputs encoded shared secret
-pub fn decapsulate(dk_encoded: impl AsRef<[u8]>, ctxt: impl AsRef<[u8]>) -> Vec<u8> {
+pub fn decapsulate(dk_encoded: impl AsRef<[u8]>, ctxt: impl AsRef<[u8]>) -> SharedSecret {
     let dk = MlKem768DecapsulationKey::from_bytes(
         &as_array::<DECAPSULATION_KEY_SIZE>(dk_encoded).unwrap().into()
     );
@@ -46,7 +46,7 @@ pub fn decapsulate(dk_encoded: impl AsRef<[u8]>, ctxt: impl AsRef<[u8]>) -> Vec<
         &ArrayN::<u8, CIPHERTEXT_SIZE>::try_from(ctxt.as_ref()).unwrap()
     ).unwrap();
 
-    k_recv.0.to_vec()
+    k_recv.0
 }
 
 pub fn as_array<const N: usize>(input: impl AsRef<[u8]>) -> Option<[u8; N]> {
