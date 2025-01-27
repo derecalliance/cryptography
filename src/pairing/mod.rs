@@ -1,20 +1,20 @@
-pub mod mlkem;
-pub mod ecies;
+pub mod pairing_mlkem;
+pub mod pairing_ecies;
 
 pub fn contact_message() -> (Vec<u8>, Vec<u8>) {
     let mut csprng = rand::rngs::OsRng;
-    let (dk, ek) = mlkem::generate_encapsulation_key(&mut csprng);
+    let (dk, ek) = pairing_mlkem::generate_encapsulation_key(&mut csprng);
     (dk, ek)
 }
 
 pub fn pairing_request_message(ek: impl AsRef<[u8]>) -> (Vec<u8>, Vec<u8>) {
     let mut csprng = rand::rngs::OsRng;
-    let (ct, shared_key) = mlkem::encapsulate(&ek, &mut csprng);
+    let (ct, shared_key) = pairing_mlkem::encapsulate(&ek, &mut csprng);
     (ct, shared_key)
 }
 
 pub fn finish_pairing(dk: impl AsRef<[u8]>, ct: impl AsRef<[u8]>) -> Vec<u8> {
-    mlkem::decapsulate(&dk, &ct)
+    pairing_mlkem::decapsulate(&dk, &ct)
 }
 
 #[cfg(test)]
