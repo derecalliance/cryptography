@@ -14,26 +14,26 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "*", features = ["derive"] }
-serde_json = "*"
-sha2 = "*"
-aead = "*"
-aes = "*"
-aes-gcm = "*"
-anyhow = "*"
-rand = "*"
-rand_chacha = "*"
-ark-std = "*"
-ark-ec = "*"
-ark-ff = "*"
-ark-poly = "*"
-ark-serialize = { version = "*", default-features = true }
-ark-bls12-381 = "*"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+sha2 = "0.10.9"
+aead = "0.5.2"
+aes = "0.8.4"
+aes-gcm = "0.10.3"
+anyhow = "1.0.98"
+rand = "0.8.5"
+rand_chacha = "0.3.1"
+ark-std = "0.5.0"
+ark-ec = "0.5.0"
+ark-ff = "0.5.0"
+ark-poly = "0.5.0"
+ark-serialize = { version = "0.5.0", default-features = true }
+ark-bls12-381 = "0.5.0"
 pgp = "0.9.0"
-smallvec = "*"
-base64 = "*"
-hex = "*"
-thiserror = "*"
-pem = "*"
-ecies = {version = "*", features = ["std"]}
-libsecp256k1 = "*"
+smallvec = "1.15.0"
+base64 = "0.22.1"
+hex = "0.4.3"
+thiserror = "1.0.69"
+pem = "3.0.5"
+ecies = { version = "0.2.9", features = ["std"] }
+libsecp256k1 = "0.7.2"
