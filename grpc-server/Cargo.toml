@@ -1,0 +1,44 @@
+[package]
+name = "derec-crypto-core-grpc"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ludovit Scholtz <ludovit@scholtz.sk>"]
+
+[dependencies]
+derec-crypto = { path = ".."}
+
+tonic = "*"               # gRPC framework
+prost = "*"               # Protobuf implementation
+tokio = { version = "*", features = ["full"] } # Async runtime
+tracing = "*"
+tracing-subscriber = "*"  # For setting up logging
+
+protobuf = "3"
+
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+sha2 = "*"
+aead = "*"
+aes = "*"
+aes-gcm = "*"
+anyhow = "*"
+rand = "*"
+rand_chacha = "*"
+ark-std = "*"
+ark-ec = "*"
+ark-ff = "*"
+ark-poly = "*"
+ark-serialize = { version = "*", default-features = true }
+ark-bls12-381 = "*"
+pgp = "*"
+smallvec = "*"
+base64 = "*"
+hex = "*"
+thiserror = "*"
+pem = "*"
+ecies = {version = "*", features = ["std"]}
+libsecp256k1 = "*"
+data-encoding = "*"
+
+[build-dependencies]
+tonic-build = "*"         # Generates Rust code from Protobuf
