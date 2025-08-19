@@ -1,0 +1,112 @@
+﻿syntax = "proto3";
+
+package derec_crypto;
+
+// SIGN
+message SignGenerateSigningKeyRequest {
+}
+message SignGenerateSigningKeyResponse {
+    bytes public_key = 1;
+    bytes private_key = 2;
+}
+
+message SignSignRequest {
+    bytes message = 1;
+    bytes secret_key = 2;
+}
+message SignSignResponse {
+    bytes signature = 1;
+}
+message SignVerifyRequest {
+    bytes message = 1;
+    bytes signature = 2;
+    bytes public_key = 3;
+}
+message SignVerifyResponse {
+    bool valid = 1;
+}
+
+// ENCRYPT
+message EncryptGenerateEncryptionKeyRequest {
+}
+message EncryptGenerateEncryptionKeyResponse {
+    bytes public_key = 1;
+    bytes private_key = 2;
+}
+message EncryptEncryptRequest {
+    bytes message = 1;
+    bytes public_key = 2;
+}
+message EncryptEncryptResponse {
+    bytes ciphertext = 1;
+}
+message EncryptDecryptRequest {
+    bytes ciphertext = 1;
+    bytes secret_key = 2;
+}
+message EncryptDecryptResponse {
+    bytes message = 1;
+}
+
+
+message SiblingHash {
+  bool is_left = 1; 
+  bytes hash = 2; 
+}
+
+message VSSShare {
+  bytes x = 1; // we use the x-coordinate to uniquely identify shares
+  bytes y = 2; // we use the y-coordinate as the share
+  bytes encrypted_secret = 3; // AES encryption of the secret message
+  bytes commitment = 4; // Merkle-root commitment to all shares
+  repeated SiblingHash merkle_path = 5; // bottom-up Merkle authentication path, bool denotes isLeft, while vec<u8> is the SHA-384 hash
+}
+
+message VSSShareRequest {
+    uint64 t = 1;
+    uint64 n = 2;
+    bytes message = 3;
+    bytes rand = 4;
+}
+
+message VSSShareResponse {
+    repeated VSSShare shares = 1; // List of key-value pairs
+}
+
+
+// Enum to represent different types of recovery errors
+enum RecoveryErrorType {
+    NO_ERROR = 0;
+    INCONSISTENT_CIPHERTEXTS = 1;
+    INCONSISTENT_COMMITMENTS = 2;
+    CORRUPT_SHARES = 3;
+    INSUFFICIENT_SHARES = 4;
+}
+
+message VSSRecoverRequest {
+    repeated VSSShare shares = 1; // List of key-value pairs
+}
+message VSSRecoverResponse {
+    bytes message = 1; // List of key-value pairs
+    RecoveryErrorType error_type = 2;
+}
+
+// Define the gRPC service
+service DeRecCryptographyService {
+    
+    // SIGN
+    rpc SignGenerateSigningKey (SignGenerateSigningKeyRequest) returns (SignGenerateSigningKeyResponse);
+    rpc SignSign (SignSignRequest) returns (SignSignResponse);
+    rpc SignVerify (SignVerifyRequest) returns (SignVerifyResponse);
+    
+    
+    // ENCRYPT
+    rpc EncryptGenerateEncryptionKey (EncryptGenerateEncryptionKeyRequest) returns (EncryptGenerateEncryptionKeyResponse);
+    rpc EncryptEncrypt (EncryptEncryptRequest) returns (EncryptEncryptResponse);
+    rpc EncryptDecrypt (EncryptDecryptRequest) returns (EncryptDecryptResponse);
+    
+    // Shamir - Merkle Recovery
+    rpc VSSShare (VSSShareRequest) returns (VSSShareResponse);
+    rpc VSSRecover (VSSRecoverRequest) returns (VSSRecoverResponse);
+    
+}
